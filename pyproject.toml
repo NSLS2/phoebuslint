@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = 'phoebusgen'
+authors = [
+    {name = 'Jakub Wlodek', email = 'jwlodek@bnl.gov'}
+]
+description = 'Screen generator for CS-Studio Phoebus displays'
+readme = {file = 'README.md', content-type = 'text/markdown'}
+license = {file = "LICENSE"}
+dynamic = ["version"]
+requires-python = '>=3.11'
+classifiers=[
+    'Programming Language :: Python :: 3',
+    'License :: OSI Approved :: BSD-3-Clause',
+    'Operating System :: OS Independent',
+    'Development Status :: 3 - Pre-Alpha',
+    'Topic :: Software Development :: Linter'
+]
+
+[project.optional-dependencies]
+dev = [
+  "pre-commit",
+  "ruff",
+  "tox-direct",
+]
+docs = [
+  "sphinx",
+  "sphinx_rtd_theme",
+  "sphinx_autodoc_typehints",
+]
+
+[tool.setuptools_scm]
+version_file = "phoebuslint/_version.py"
+
+[tool.pyright]
+typeCheckingMode = "standard"
+reportMissingImports = false # Ignore missing stubs in imported modules
+reportMissingTypeStubs = false
+
+[tool.pytest.ini_options]
+# Run pytest with all our checkers, and don't spam us with massive tracebacks on error
+addopts = """
+    --tb=native -vv
+    """
+# https://iscinumpy.gitlab.io/post/bound-version-constraints/#watch-for-warnings
+filterwarnings = "error"
+# Doctest python code in docs, python code in src docstrings, test functions in tests
+testpaths = "docs src tests"
+
+[project.urls]
+Homepage = "https://github.com/NSLS2/phoebuslint"
+Documentation = "https://NSLS2.github.io/phoebuslint"
+Repository = "https://github.com/NSLS2/phoebuslint"
+"Bug Tracker" = "https://github.com/NSLS2/phoebuslint/issues"
+Changelog = "https://github.com/NSLS2/phoebuslint/blob/master/CHANGELOG.md"

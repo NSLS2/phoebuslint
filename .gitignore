@@ -1,0 +1,16 @@
+# PyCharm 
+.idea/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Distribution / packaging
+MANIFEST
+build/
+dist/
+
+# Virtual environments
+venv/
+_version.py
