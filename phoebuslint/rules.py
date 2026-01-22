@@ -1,53 +1,44 @@
-from collections.abc import ABC, abstractmethod
+from abc import ABC, abstractmethod
 from phoebusgen import Screen
+from phoebusgen.widgets import Widget, Label
+from phoebusgen.properties import PropertyBase, HasText
+from .utils import SeverityLevel
+from typing import Generic, TypeVar
 
-class LintRule(ABC):
+PhoebusElementT = TypeVar("PhoebusElementT", bound=PropertyBase)
+
+class LintRule(ABC, Generic[PhoebusElementT]):
     """Abstract base class for linting rules."""
 
-    rule_code: int
+    rule_code: str
     description: str
+    rule_severity: SeverityLevel = SeverityLevel.WARNING
 
+    @classmethod
     @abstractmethod
-    def check(self, screen: Screen) -> list[str]:
-        """Check the given screen for linting issues.
+    def check(cls, element: PhoebusElementT) -> bool:
+        """Check the given phoebus element for issue covered by specific rule.
 
         Args:
-            screen (Screen): The screen to be checked.
+            element (PhoebusElementT): The phoebus element to be checked.
         Returns:
-            list[str]: A list of linting issues found in the screen.
+            bool: True if the rule check passes, False if it fails.
         """
-        pass
-
-class NoTitleSetRule(LintRule):
-    """Rule that checks if a screen has a title set."""
-
-    rule_code = 1001
-    description = "Screen does not have a title set."
-
-    def check(self, screen: Screen) -> list[str]:
-        if not screen.title or screen.title.strip() == "":
-            return [f"[{self.rule_code}] {self.description}"]
-        return []
+        ...
 
 
-class DefaultTitleSet(LintRule):
-    """Rule that checks if a screen has the default title set."""
 
-    rule_code = 1002
-    description = "Screen has the default title set."
 
-    def check(self, screen: Screen) -> list[str]:
-        if screen.title == "Display":
-            return [f"[{self.rule_code}] {self.description}"]
-        return []
-    
-class EmptyScreen(LintRule):
-    """Rule that checks if a screen is empty (has no widgets)."""
 
-    rule_code = 1003
-    description = "Screen is empty (has no widgets)."
 
-    def check(self, screen: Screen) -> list[str]:
-        if not screen.widgets or len(screen.widgets) == 0:
-            return [f"[{self.rule_code}] {self.description}"]
-        return []
+
+class EmptyText(LintRule[HasText]):
+    """Rule that checks for labels with empty text."""
+
+    rule_code = "S1004"
+    description = "Label has empty text."
+
+    @classmethod
+    def check(cls, element: HasText) -> bool:
+        return element.text is not None and element.text.strip() == ""
+

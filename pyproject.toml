@@ -56,3 +56,22 @@ Documentation = "https://NSLS2.github.io/phoebuslint"
 Repository = "https://github.com/NSLS2/phoebuslint"
 "Bug Tracker" = "https://github.com/NSLS2/phoebuslint/issues"
 Changelog = "https://github.com/NSLS2/phoebuslint/blob/master/CHANGELOG.md"
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.pypi-dependencies]
+phoebusgen = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+docs = { features = ["docs"], solve-group = "default" }
+
+[tool.pixi.tasks]
+lint = "pre-commit run --all-files"
+
+[tool.pixi.dependencies]
+pre-commit = ">=4.5.1,<5"
+ruff = ">=0.14.13,<0.15"
