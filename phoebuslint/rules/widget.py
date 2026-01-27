@@ -1,11 +1,11 @@
 from phoebusgen.widgets import Widget
 from phoebusgen import Screen
-from .base import LintRule, RuleViolation
+from ..linter import LintRule, RuleViolation
 
 class WidgetHeightOrWidthZeroOrNegative(LintRule):
     """Rule that checks if a widget has zero or negative height or width."""
 
-    rule_code = "W1001"
+    rule_code = "W101"
     description = "Widget has zero or negative height or width."
 
     @classmethod
@@ -19,7 +19,7 @@ class WidgetHeightOrWidthZeroOrNegative(LintRule):
 class WidgetOutOfBounds(LintRule):
     """Rule that checks for widgets that are out of screen bounds."""
 
-    rule_code = "W1002"
+    rule_code = "W102"
     description = "Widget is out of screen bounds"
     
     @classmethod

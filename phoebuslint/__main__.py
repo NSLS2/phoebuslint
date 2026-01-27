@@ -28,16 +28,21 @@ def main():
     
     linter = PhoebusLinter(config)
 
+    results = {}
     for path_str in args.paths:
         path = Path(path_str)
         if path.is_file() and path.suffix == ".bob":
-            linter.lint_file(path)
+            results.update(linter.lint_file(path))
         elif path.is_dir():
-            linter.lint_directory(path)
+            results.update(linter.lint_directory(path))
         else:
             logger.warning(f"Skipping invalid path: {path}")
 
-
+    linter.display_linting_report(results)
+    if linter.did_linting_pass(results):
+        exit(0)
+    else:
+        exit(1)
 
 if __name__ == "__main__":
     main()
