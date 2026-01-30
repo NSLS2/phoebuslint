@@ -1,9 +1,3 @@
-from ..linter import LintRule, RecursiveLintRule
-from phoebusgen.widgets import EmbeddedDisplay
-from phoebusgen.properties import ResizeBehavior
-from phoebusgen import Screen
-from pathlib import Path
-
 # class EmbeddedDisplayFileDoesNotExist(LintRule):
 #     """Rule that checks if an EmbeddedDisplay widget references a non-existent file."""
 
@@ -17,7 +11,7 @@ from pathlib import Path
 #             if embedded_display.file is not None and not Path(embedded_display.file).is_file() :
 #                 return True
 #         return embedded_display.file is None or not Path(embedded_display.file).is_file() or not Path(embedded_display.file).suffix in [".bob", ".opi"]
-    
+
 # class EmbeddedDisplayTooLargeForGivenDims(LintRule):
 #     """Rule that checks if an EmbeddedDisplay widget has dimensions larger than the referenced screen."""
 

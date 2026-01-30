@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
-from phoebusgen import Screen
-from phoebusgen.widgets import Widget, Label
 from phoebusgen.properties import PropertyBase, HasText
 from .utils import SeverityLevel
 from typing import Generic, TypeVar
 
 PhoebusElementT = TypeVar("PhoebusElementT", bound=PropertyBase)
+
 
 class LintRule(ABC, Generic[PhoebusElementT]):
     """Abstract base class for linting rules."""
@@ -27,11 +26,6 @@ class LintRule(ABC, Generic[PhoebusElementT]):
         ...
 
 
-
-
-
-
-
 class EmptyText(LintRule[HasText]):
     """Rule that checks for labels with empty text."""
 
@@ -41,4 +35,3 @@ class EmptyText(LintRule[HasText]):
     @classmethod
     def check(cls, element: HasText) -> bool:
         return element.text is not None and element.text.strip() == ""
-

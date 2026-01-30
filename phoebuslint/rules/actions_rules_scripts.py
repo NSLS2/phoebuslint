@@ -1,8 +1,4 @@
-from phoebusgen.properties import HasActionsRulesAndScripts, Script
 # TODO: Fix import when phoebusgen is updated
-from phoebusgen.properties.types import EmbeddedScript
-from phoebusgen import Screen
-from pathlib import Path
 
 
 # class ScriptPathDoesNotExist(LintRule[HasActionsRulesAndScripts]):
@@ -17,7 +13,7 @@ from pathlib import Path
 #             if script.file is not None and not Path(script.file).is_file():
 #                 return True
 #         return False
-    
+
 # class IncorrectScriptFileExtension(LintRule[HasActionsRulesAndScripts]):
 #     """Rule that checks if a widget with scripts references a script file with incorrect extension."""
 
@@ -30,7 +26,7 @@ from pathlib import Path
 #             if script.file is not None and not Path(script.file).suffix in [".py", ".js"]:
 #                 return True
 #         return False
-    
+
 
 # class EmptyScriptFilePath(LintRule[HasActionsRulesAndScripts]):
 #     """Rule that checks if a widget with scripts has an empty script file path."""
@@ -44,7 +40,7 @@ from pathlib import Path
 #             if script.file is None or script.file.strip() == "":
 #                 return True
 #         return False
-    
+
 # class EmptyScriptContents(LintRule[HasActionsRulesAndScripts]):
 #     """Rule that checks if a widget with scripts has empty script contents."""
 

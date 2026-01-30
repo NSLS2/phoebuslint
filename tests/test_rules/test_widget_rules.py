@@ -2,6 +2,7 @@ from phoebusgen import Screen
 from phoebusgen.widgets import Label
 from phoebuslint.rules.widget import WidgetOutOfBounds
 
+
 def test_widget_out_of_bounds_rule(sample_empty_screen: Screen):
     sample_empty_screen.width = 400
     sample_empty_screen.height = 300

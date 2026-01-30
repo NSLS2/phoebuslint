@@ -8,14 +8,29 @@ import logging
 logger = logging.getLogger("phoebuslint")
 logging.basicConfig(level=logging.INFO)
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Phoebus operator interface screen linter")
-    parser.add_argument(
-        "-c", "--config", type=str, help="Path to PhoebusLint configuration file", default=None
+    parser = argparse.ArgumentParser(
+        description="Phoebus operator interface screen linter"
     )
-    parser.add_argument("paths", nargs="+", help="Paths to .bob files or directories to lint recursively")
-    parser.add_argument("-d", "--debug", action="store_true", help="Enable debug logging")
-    parser.add_argument("-v", "--version", action="version", version=f"PhoebusLint {__version__}")
+    parser.add_argument(
+        "-c",
+        "--config",
+        type=str,
+        help="Path to PhoebusLint configuration file",
+        default=None,
+    )
+    parser.add_argument(
+        "paths",
+        nargs="+",
+        help="Paths to .bob files or directories to lint recursively",
+    )
+    parser.add_argument(
+        "-d", "--debug", action="store_true", help="Enable debug logging"
+    )
+    parser.add_argument(
+        "-v", "--version", action="version", version=f"PhoebusLint {__version__}"
+    )
 
     args = parser.parse_args()
 
@@ -25,7 +40,7 @@ def main():
         config = PhoebusLintConfig.from_yaml(config_content)
     else:
         config = PhoebusLintConfig()
-    
+
     linter = PhoebusLinter(config)
 
     results = {}
@@ -43,6 +58,7 @@ def main():
         exit(0)
     else:
         exit(1)
+
 
 if __name__ == "__main__":
     main()

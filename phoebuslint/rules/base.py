@@ -1,16 +1,16 @@
 from abc import ABC, abstractmethod
 from phoebusgen import Screen
-from phoebusgen.widgets import Widget, Label
-from phoebusgen.properties import PropertyBase, HasText
+from phoebusgen.widgets import Widget
 from ..utils import SeverityLevel
 from ..linter import PhoebusLinter
 from pathlib import Path
 from dataclasses import dataclass
 
+
 @dataclass
 class RuleViolation:
     """Dataclass representing a rule violation found during linting.
-    
+
     Attributes:
         rule_name (str): The name of the rule that was violated.
         rule_code (str): The code of the rule that was violated.
@@ -39,8 +39,8 @@ class RuleViolation:
             location += f", Property: {self.property}"
         if self.property_element:
             location += f", Element: {self.property_element}"
-        return (f"[{self.rule_code}] {self.rule_name}: "
-                f"{self.details} ({location})")
+        return f"[{self.rule_code}] {self.rule_name}: {self.details} ({location})"
+
 
 class LintRule(ABC):
     """Abstract base class for linting stateless linting rule."""
@@ -62,9 +62,14 @@ class LintRule(ABC):
         ...
 
     @classmethod
-    def rule_violation_factory(cls, screen: Screen, widget: Widget | None = None,
-                               property: str | None = None, property_element: str | None = None,
-                               details: str | None = None) -> RuleViolation:
+    def rule_violation_factory(
+        cls,
+        screen: Screen,
+        widget: Widget | None = None,
+        property: str | None = None,
+        property_element: str | None = None,
+        details: str | None = None,
+    ) -> RuleViolation:
         """Factory method to create a RuleViolation instance for this rule.
 
         Args:
@@ -84,8 +89,9 @@ class LintRule(ABC):
             widget=widget,
             property=property,
             property_element=property_element,
-            details=details if details else cls.description
+            details=details if details else cls.description,
         )
+
 
 class RecursiveLintRule(ABC):
     """Abstract base class for linting rules that require recursive linting of linked screens."""
@@ -96,7 +102,12 @@ class RecursiveLintRule(ABC):
 
     @classmethod
     @abstractmethod
-    def check(cls, linter: PhoebusLinter, screen: Screen, visited_screens: dict[Path, list[RuleViolation]]) -> list[RuleViolation] | None:
+    def check(
+        cls,
+        linter: PhoebusLinter,
+        screen: Screen,
+        visited_screens: dict[Path, list[RuleViolation]],
+    ) -> list[RuleViolation] | None:
         """Check the given phoebus element for issue covered by specific rule, potentially requiring recursive linting.
 
         Args:

@@ -4,7 +4,6 @@ from ..utils import SeverityLevel
 from xml.etree import ElementTree as ET
 
 
-
 class MissingDisplayTag(LintRule):
     """Rule that checks if a screen is missing the top-level <display> tag."""
 
@@ -14,7 +13,6 @@ class MissingDisplayTag(LintRule):
 
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation] | None:
-
         if screen.bob_file is None:
             return None
 
@@ -22,7 +20,8 @@ class MissingDisplayTag(LintRule):
         root = tree.getroot()
         if root.tag != "display":
             return [cls.rule_violation_factory(screen)]
-        
+
+
 class TopLevelTagNotDisplay(LintRule):
     """Rule that checks if a screen has top-level tags other than <display>."""
 
@@ -31,11 +30,14 @@ class TopLevelTagNotDisplay(LintRule):
 
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation] | None:
-
         if screen.root.tag != "display":
-            return [cls.rule_violation_factory(screen, details=f"{cls.description} Tag: {screen.root.tag}")]
+            return [
+                cls.rule_violation_factory(
+                    screen, details=f"{cls.description} Tag: {screen.root.tag}"
+                )
+            ]
 
-            
+
 class ExtraTagsInDisplay(LintRule):
     """Rule that checks if a screen has extra tags inside the <display> tag."""
 
@@ -44,11 +46,14 @@ class ExtraTagsInDisplay(LintRule):
 
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation] | None:
-
         violations = []
         for display_child in screen.root:
             if display_child.tag not in ["widget", *screen.get_property_names()]:
-                violations.append(cls.rule_violation_factory(screen, details=f"{cls.description} Tag: {display_child.tag}"))
+                violations.append(
+                    cls.rule_violation_factory(
+                        screen, details=f"{cls.description} Tag: {display_child.tag}"
+                    )
+                )
         return violations if violations else None
 
 
@@ -72,7 +77,6 @@ class DefaultTitleSet(LintRule):
 
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation] | None:
-
         # Phoebusgen will automatically set the screen name to "Display" if no name is found
         if screen.name == "Display":
             return [cls.rule_violation_factory(screen)]
