@@ -1,5 +1,6 @@
 import pytest
-from phoebusgen import Screen
+from phoebusgen.v4 import Screen
+
 
 @pytest.fixture
 def sample_empty_screen(tmp_path) -> Screen:
@@ -8,6 +9,7 @@ def sample_empty_screen(tmp_path) -> Screen:
     screen.height = 600
     return screen
 
+
 @pytest.fixture
 def screen_given_xml_factory(tmp_path):
     def _factory(xml_content: str) -> Screen:
@@ -15,4 +17,5 @@ def screen_given_xml_factory(tmp_path):
         with open(bob_file, "w") as f:
             f.write(xml_content)
         return Screen(f_name=str(bob_file))
+
     return _factory

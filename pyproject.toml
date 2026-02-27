@@ -55,6 +55,32 @@ filterwarnings = "error"
 # Doctest python code in docs, python code in src docstrings, test functions in tests
 testpaths = "docs src tests"
 
+[tool.ruff]
+src = ["src", "tests"]
+line-length = 88
+lint.select = [
+    "B",   # flake8-bugbear - https://docs.astral.sh/ruff/rules/#flake8-bugbear-b
+    "C4",  # flake8-comprehensions - https://docs.astral.sh/ruff/rules/#flake8-comprehensions-c4
+    "E",   # pycodestyle errors - https://docs.astral.sh/ruff/rules/#error-e
+    "F",   # pyflakes rules - https://docs.astral.sh/ruff/rules/#pyflakes-f
+    "W",   # pycodestyle warnings - https://docs.astral.sh/ruff/rules/#warning-w
+    "I",   # isort - https://docs.astral.sh/ruff/rules/#isort-i
+    "UP",  # pyupgrade - https://docs.astral.sh/ruff/rules/#pyupgrade-up
+    "SLF", # self - https://docs.astral.sh/ruff/settings/#lintflake8-self
+]
+exclude = [
+    "src/phoebuslint/_version.py",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# By default, private member access is allowed in tests
+# See https://github.com/DiamondLightSource/python-copier-template/issues/154
+# Remove this line to forbid private member access in tests
+"tests/**/*" = ["SLF001"]
+
+[tool.importlinter]
+root_package = "phoebuslint"
+
 [project.urls]
 Homepage = "https://github.com/NSLS2/phoebuslint"
 Documentation = "https://NSLS2.github.io/phoebuslint"
@@ -67,7 +93,9 @@ channels = ["conda-forge"]
 platforms = ["linux-64"]
 
 [tool.pixi.pypi-dependencies]
-phoebusgen = { path = ".", editable = true }
+phoebuslint = { path = ".", editable = true }
+phoebusgen = { git = "https://github.com/jwlodek/phoebusgen", rev="v4" }
+
 
 [tool.pixi.environments]
 default = { solve-group = "default" }
@@ -79,4 +107,5 @@ lint = "pre-commit run --all-files"
 
 [tool.pixi.dependencies]
 pre-commit = ">=4.5.1,<5"
-ruff = ">=0.14.13,<0.15"
+ruff = ">=0.15.2,<0.16"
+import-linter = ">=2.10,<3"

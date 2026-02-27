@@ -17,3 +17,5 @@ _version.py
 # pixi environments
 .pixi/*
 !.pixi/config.toml
+
+.vscode/
