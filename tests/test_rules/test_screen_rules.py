@@ -1,13 +1,14 @@
-from phoebusgen import Screen
-from phoebusgen.widgets import Label
+from xml.etree import ElementTree as ET
+
+from phoebusgen.v4 import Screen
+from phoebusgen.v4.widgets import Label
 from phoebuslint.rules import (
-    EmptyScreen,
-    TitleEmptyOrNotSet,
     DefaultTitleSet,
+    EmptyScreen,
     ExtraTagsInDisplay,
+    TitleEmptyOrNotSet,
     TopLevelTagNotDisplay,
 )
-from xml.etree import ElementTree as ET
 
 
 def test_root_tag_not_display(sample_empty_screen: Screen):

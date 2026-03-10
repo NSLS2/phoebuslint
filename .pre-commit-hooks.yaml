@@ -1,0 +1,4 @@
+- id: phoebuslint
+  name: Linter for Phoebus operator interfaces
+  entry: phoebuslint
+  language: python

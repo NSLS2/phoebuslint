@@ -1,10 +1,11 @@
-from phoebusgen import Screen
-from phoebusgen.widgets import Widget
-from pathlib import Path
-from dataclasses import dataclass
-from .utils import SeverityLevel
-import yaml
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+
+import yaml
+from phoebusgen.v4 import Screen
+from phoebusgen.v4.widgets import Widget
 
 # Define color codes as constants for readability
 RED = "\033[31m"
@@ -12,6 +13,15 @@ YELLOW = "\033[33m"
 GREEN = "\033[32m"
 BLUE = "\033[34m"
 RESET = "\033[0m"  # Resets the color to default
+<<<<<<< HEAD
+=======
+
+
+class SeverityLevel(int, Enum):
+    WARNING = 1
+    ERROR = 2
+    CRITICAL = 3
+>>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
 
 
 @dataclass
@@ -23,10 +33,10 @@ class RuleViolation:
         rule_code (str): The code of the rule that was violated.
         rule_severity (SeverityLevel): The severity level of the rule violation.
         screen (Screen): The screen where the violation was found.
-        widget (Widget | None): The widget where the violation was found, if applicable.
-        property (str | None): The property name where the violation was found, if applicable.
-        property_element (str | None): The specific element of the property where the violation was found, if applicable.
-        details (str): Additional details about the violation, if applicable.
+        widget (Widget | None): The widget where the violation was found.
+        property (str | None): The property name where the violation was found.
+        property_element (str | None): Property elem where the violation was found.
+        details (str): Additional details about the violation.
     """
 
     rule_name: str
@@ -69,10 +79,10 @@ class RuleViolationFactory:
 
         Args:
             screen (Screen): The screen where the violation was found.
-            widget (Widget | None): The widget where the violation was found, if applicable.
-            property (str | None): The property name where the violation was found, if applicable.
-            property_element (str | None): The specific element of the property where the violation was found, if applicable.
-            details (str | None): Additional details about the violation, if applicable.
+            widget (Widget | None): The widget where the violation was found.
+            property (str | None): Property name where the violation was found.
+            property_element (str | None): Property elem where the violation was found.
+            details (str | None): Additional details about the violation.
         Returns:
             RuleViolation: The created RuleViolation instance.
         """
@@ -99,13 +109,13 @@ class LintRule(RuleViolationFactory, ABC):
         Args:
             element (PhoebusElementT): The phoebus element to be checked.
         Returns:
-            list[RuleViolation] | None: List of issues found, or None if no issues found.
+            list[RuleViolation] | None: List of issues found, or None.
         """
         ...
 
 
 class RecursiveLintRule(RuleViolationFactory, ABC):
-    """Abstract base class for linting rules that require recursive linting of linked screens."""
+    """ABC for linting rules that require recursive linting of linked screens."""
 
     @classmethod
     @abstractmethod
@@ -113,16 +123,23 @@ class RecursiveLintRule(RuleViolationFactory, ABC):
         cls,
         linter: "PhoebusLinter",
         screen: Screen,
+<<<<<<< HEAD
         visited_screens: dict[Path, list[RuleViolation]],
     ) -> list[RuleViolation] | None:
         """Check the given phoebus element for issue covered by specific rule, potentially requiring recursive linting.
+=======
+        visited: dict[Path, list[RuleViolation]] | None,
+    ) -> list[RuleViolation] | None:
+        """Recursively check the given screen for issues covered by this rule.
+>>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
 
         Args:
-            linter (PhoebusLinter): The linter instance. Used to recursively lint linked screens.
+            linter (PhoebusLinter): The linter instance. Recursively lints screens.
             screen (Screen): The screen to be checked.
-            visited_screens (dict[Path, list[RuleViolation]]): Dictionary of already visited screens to avoid re-linting.
+            visited (dict[Path, list[RuleViolation]] | None):
+                Map of paths to violations.
         Returns:
-            dict[Path, list[RuleViolation]] | None: Dictionary of rule violations found, or None if no violations found.
+            dict[Path, list[RuleViolation]] | None: Map of paths to violations.
         """
         ...
 
@@ -133,8 +150,15 @@ class PhoebusLinter:
     def __init__(
         self,
         fail_severity: SeverityLevel = SeverityLevel.WARNING,
+<<<<<<< HEAD
         disabled_rule_codes: list[str] = [],
     ):
+=======
+        disabled_rule_codes: list[str] | None = None,
+    ):
+        if disabled_rule_codes is None:
+            disabled_rule_codes = []
+>>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
         self._enabled_rules = (
             LintRule.__subclasses__() + RecursiveLintRule.__subclasses__()
         )
@@ -159,29 +183,36 @@ class PhoebusLinter:
         return cls(fail_severity=fail_severity, disabled_rule_codes=disabled_rule_codes)
 
     def lint_screen(
+<<<<<<< HEAD
         self, screen: Screen, visited_screens: dict[Path, list[RuleViolation]] = {}
+=======
+        self, screen: Screen, visited: dict[Path, list[RuleViolation]] | None = None
+>>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
     ) -> dict[Path, list[RuleViolation]]:
         """Lint a single Phoebus screen.
 
         Args:
             screen (Screen): The Phoebus screen to lint.
-            visited_screens (dict[Path, list[RuleViolation]]): Dictionary of already visited screens to avoid re-linting.
+            visited (dict[Path, list[RuleViolation]]): Map of paths to violations
         Returns:
-            dict[Path, list[RuleViolation]]: A dictionary mapping file paths to lists of rule violations found.
+            dict[Path, list[RuleViolation]]: Map of paths to violations.
         Raises:
             ValueError: If the screen is not associated with a file path.
         """
 
+        if visited is None:
+            visited = {}
         if screen.bob_file is None:
             raise ValueError("Screen must be associated with a file path to be linted.")
 
         file_path = Path(screen.bob_file)
 
-        if file_path in visited_screens:
-            return {file_path: visited_screens[file_path]}
+        if file_path in visited:
+            return {file_path: visited[file_path]}
 
-        visited_screens[file_path] = []
+        visited[file_path] = []
         for rule_cls in self._enabled_rules:
+<<<<<<< HEAD
             if issubclass(rule_cls, RecursiveLintRule):
                 violations_for_rule = rule_cls.check(self, screen, visited_screens)
             else:
@@ -189,30 +220,60 @@ class PhoebusLinter:
             visited_screens[file_path].extend(
                 violations_for_rule if violations_for_rule is not None else []
             )
+=======
+            try:
+                if issubclass(rule_cls, RecursiveLintRule):
+                    violations_for_rule = rule_cls.check(self, screen, visited)
+                else:
+                    violations_for_rule = rule_cls.check(screen)
+                visited[file_path].extend(
+                    violations_for_rule if violations_for_rule is not None else []
+                )
+            except Exception as e:
+                visited[file_path].append(
+                    RuleViolation(
+                        rule_name=rule_cls.__name__,
+                        rule_code=rule_cls.rule_code,
+                        rule_severity=SeverityLevel.ERROR,
+                        screen=screen,
+                        details=f"Error while checking rule: {e}",
+                    )
+                )
+>>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
 
         # If being called from higher level function, store results to avoid re-linting
 
-        return {file_path: visited_screens[file_path]}
+        return {file_path: visited[file_path]}
 
     def lint_file(
+<<<<<<< HEAD
         self, file_path: Path, visited_screens: dict[Path, list[RuleViolation]] = {}
+=======
+        self, file_path: Path, visited: dict[Path, list[RuleViolation]] | None = None
+>>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
     ) -> dict[Path, list[RuleViolation]]:
         """Lint a single .bob file.
 
         Args:
             file_path (Path): The path to the .bob file to lint.
-            visited_screens (dict[Path, list[RuleViolation]]): Dictionary of already visited screens to avoid re-linting.
+            visited (dict[Path, list[RuleViolation]]): Map of paths to violations
         Returns:
-            dict[Path, list[RuleViolation]]: A dictionary mapping file paths to lists of rule violations found.
+            dict[Path, list[RuleViolation]]: Map of paths to violations.
         Raises:
             ValueError: If the file does not exist or is not a .bob file.
         """
 
+        if visited is None:
+            visited = {}
         if not file_path.is_file() or file_path.suffix != ".bob":
             raise ValueError(f"File {file_path} does not exist or is not a .bob file.")
 
         screen = Screen(f_name=str(file_path))
+<<<<<<< HEAD
         return self.lint_screen(screen, visited_screens=visited_screens)
+=======
+        return self.lint_screen(screen, visited=visited)
+>>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
 
     def lint_directory(self, dir_path: Path) -> dict[Path, list[RuleViolation]]:
         """Lint all .bob files in the given directory and its subdirectories.
@@ -220,30 +281,42 @@ class PhoebusLinter:
         Args:
             dir_path (Path): The directory path to lint.
         Returns:
-            dict[Path, list[RuleViolation]]: A dictionary mapping file paths to lists of rule violations found.
+            dict[Path, list[RuleViolation]]: Map of paths to violations.
         """
 
-        visited_screens: dict[Path, list[RuleViolation]] = {}
+        visited: dict[Path, list[RuleViolation]] = {}
         for file_path in dir_path.glob("**/*.bob"):
-            self.lint_file(file_path, visited_screens=visited_screens)
+            self.lint_file(file_path, visited=visited)
 
-        return visited_screens
+        return visited
 
+<<<<<<< HEAD
     def display_linting_report(
         self, linting_results: dict[Path, list[RuleViolation]]
     ) -> None:
+=======
+    def display_linting_report(self, results: dict[Path, list[RuleViolation]]) -> None:
+>>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
         """Display a linting report based on the given linting results.
 
         Args:
-            linting_results (dict[Path, list[RuleViolation]]): A dictionary mapping file paths to lists of rule violations found.
+            results (dict[Path, list[RuleViolation]]): Map of paths to violations.
         """
 
+<<<<<<< HEAD
         n_screens = len(linting_results)
         n_screens_with_issues = sum(
             1 for issues in linting_results.values() if len(issues) > 0
         )
         print(
             f"PhoebusLint scanned {n_screens} screens, {n_screens_with_issues} with rule violations.\n"
+=======
+        n_screens = len(results)
+        n_screens_with_issues = sum(1 for issues in results.values() if len(issues) > 0)
+        print(
+            f"PhoebusLint scanned {n_screens} screens, ",
+            f"{n_screens_with_issues} with violations.\n",
+>>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
         )
         if n_screens_with_issues == 0:
             print(f"{GREEN}No violations found!{RESET}\n")
@@ -253,13 +326,13 @@ class PhoebusLinter:
         violations_count: dict[str, int] = {}
 
         # Get count of how many times each rule was violated
-        for violations in linting_results.values():
+        for violations in results.values():
             for violation in violations:
                 violations_count[violation.rule_name] = (
                     violations_count.get(violation.rule_name, 0) + 1
                 )
 
-        for violations in linting_results.values():
+        for violations in results.values():
             for violation in violations:
                 color = (
                     RED if violation.rule_severity >= SeverityLevel.ERROR else YELLOW
@@ -268,14 +341,19 @@ class PhoebusLinter:
 
         print()
 
-        for severity_level in SeverityLevel:
+        for sevr in SeverityLevel:
             n_severity = sum(
                 1
+<<<<<<< HEAD
                 for violations in linting_results.values()
+=======
+                for violations in results.values()
+>>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
                 for violation in violations
-                if violation.rule_severity == severity_level
+                if violation.rule_severity == sevr
             )
             if n_severity > 0:
+<<<<<<< HEAD
                 color = RED if severity_level >= SeverityLevel.ERROR else YELLOW
                 print(
                     f"{color}Total {severity_level.name.capitalize()}s: {n_severity}{RESET}"
@@ -289,9 +367,20 @@ class PhoebusLinter:
     def did_linting_pass(
         self, linting_results: dict[Path, list[RuleViolation]]
     ) -> bool:
+=======
+                color = RED if sevr >= SeverityLevel.ERROR else YELLOW
+                print(f"{color}Total {sevr.name.capitalize()}s: {n_severity}{RESET}")
+        print()
+
+        total_issues = sum(len(issues) for issues in results.values())
+        if total_issues > 0:
+            print(f"Found {total_issues} total issues.")
+
+    def did_linting_pass(self, results: dict[Path, list[RuleViolation]]) -> bool:
+>>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
         """Determine if the linting results pass based on the configured fail severity.
         Args:
-            linting_results (dict[Path, list[RuleViolation]]): A dictionary mapping file paths to lists of rule violations found.
+            results (dict[Path, list[RuleViolation]]): Map of paths to violations.
         Returns:
             bool: True if linting passed, False otherwise.
         """
@@ -301,5 +390,9 @@ class PhoebusLinter:
                 violation.rule_severity < self._fail_severity
                 for violation in violations_by_screen
             )
+<<<<<<< HEAD
             for violations_by_screen in linting_results.values()
+=======
+            for violations_by_screen in results.values()
+>>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
         )

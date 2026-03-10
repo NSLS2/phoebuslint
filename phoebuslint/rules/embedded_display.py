@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # class EmbeddedDisplayFileDoesNotExist(LintRule):
 #     """Rule that checks if an EmbeddedDisplay widget references a non-existent file."""
 
@@ -22,3 +23,5 @@
 #     def check(cls, element: EmbeddedDisplay) -> bool:
 #         referenced_screen = Screen(f_name=element.file)
 #         return element.resize_behavior == ResizeBehavior.NO_RESIZE and (referenced_screen.width > element.width or referenced_screen.height > element.height)
+=======
+>>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe

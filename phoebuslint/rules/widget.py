@@ -1,4 +1,5 @@
-from phoebusgen import Screen
+from phoebusgen.v4 import Screen
+
 from ..linter import LintRule, RuleViolation
 
 

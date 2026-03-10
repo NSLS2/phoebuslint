@@ -1,5 +1,6 @@
 import pytest
-from phoebusgen import Screen
+from phoebusgen.v4 import Screen
+
 
 
 @pytest.fixture

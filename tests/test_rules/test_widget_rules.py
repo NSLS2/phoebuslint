@@ -1,5 +1,5 @@
-from phoebusgen import Screen
-from phoebusgen.widgets import Label
+from phoebusgen.v4 import Screen
+from phoebusgen.v4.widgets import Label
 from phoebuslint.rules.widget import WidgetOutOfBounds
 
 

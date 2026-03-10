@@ -1,9 +1,9 @@
 import argparse
-from .config import PhoebusLintConfig
-from .linter import PhoebusLinter
-from pathlib import Path
-from ._version import __version__
 import logging
+from pathlib import Path
+
+from ._version import __version__
+from .linter import PhoebusLinter
 
 logger = logging.getLogger("phoebuslint")
 logging.basicConfig(level=logging.INFO)
@@ -35,13 +35,13 @@ def main():
     args = parser.parse_args()
 
     if args.config and Path(args.config).is_file():
-        with open(args.config, "r") as f:
+        with open(args.config) as f:
             config_content = f.read()
-        config = PhoebusLintConfig.from_yaml(config_content)
+        linter = PhoebusLinter.from_yaml(config_content)
     else:
-        config = PhoebusLintConfig()
+        linter = PhoebusLinter()
 
-    linter = PhoebusLinter(config)
+    print(f"PhoebusLint version: {__version__}")
 
     results = {}
     for path_str in args.paths:

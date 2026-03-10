@@ -1,5 +1,9 @@
+<<<<<<< HEAD
+=======
+from phoebusgen.v4 import Screen
+>>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
 from phoebuslint import LintRule, RecursiveLintRule
-from phoebusgen import Screen
+
 
 
 def test_all_rule_codes_unique():

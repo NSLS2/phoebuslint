@@ -1,13 +1,13 @@
-from ..linter import LintRule, RuleViolation
-from phoebusgen import Screen
-from ..utils import SeverityLevel
 from xml.etree import ElementTree as ET
 
+from phoebusgen.v4 import Screen
+
+from ..linter import LintRule, RuleViolation, SeverityLevel
 
 class MissingDisplayTag(LintRule):
     """Rule that checks if a screen is missing the top-level <display> tag."""
 
-    rule_code = "S101"
+    rule_code = "S102"
     description = "Screen is missing the top-level <display> tag."
     rule_severity = SeverityLevel.CRITICAL
 
@@ -25,7 +25,7 @@ class MissingDisplayTag(LintRule):
 class TopLevelTagNotDisplay(LintRule):
     """Rule that checks if a screen has top-level tags other than <display>."""
 
-    rule_code = "S102"
+    rule_code = "S103"
     description = "Root tag is not <display>."
 
     @classmethod
@@ -41,7 +41,7 @@ class TopLevelTagNotDisplay(LintRule):
 class ExtraTagsInDisplay(LintRule):
     """Rule that checks if a screen has extra tags inside the <display> tag."""
 
-    rule_code = "S103"
+    rule_code = "S104"
     description = "Unexpected tag found in <display>."
 
     @classmethod
@@ -60,7 +60,7 @@ class ExtraTagsInDisplay(LintRule):
 class TitleEmptyOrNotSet(LintRule):
     """Rule that checks if a screen has an empty or not set title."""
 
-    rule_code = "S104"
+    rule_code = "S105"
     description = "Screen has an empty or not set title."
 
     @classmethod
@@ -72,12 +72,12 @@ class TitleEmptyOrNotSet(LintRule):
 class DefaultTitleSet(LintRule):
     """Rule that checks if a screen has the default title set."""
 
-    rule_code = "S105"
+    rule_code = "S106"
     description = "Screen has the default title set."
 
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation] | None:
-        # Phoebusgen will automatically set the screen name to "Display" if no name is found
+        # Phoebusgen will set the screen name to "Display" if no name is found
         if screen.name == "Display":
             return [cls.rule_violation_factory(screen)]
 
@@ -85,7 +85,7 @@ class DefaultTitleSet(LintRule):
 class EmptyScreen(LintRule):
     """Rule that checks if a screen is empty (has no widgets)."""
 
-    rule_code = "S106"
+    rule_code = "S107"
     description = "Screen is empty (has no widgets)."
 
     @classmethod
@@ -97,7 +97,7 @@ class EmptyScreen(LintRule):
 class ScreenHeightOrWidthZeroOrNegative(LintRule):
     """Rule that checks if a screen has zero or negative height."""
 
-    rule_code = "S107"
+    rule_code = "S108"
     description = "Screen has zero or negative height or width."
 
     @classmethod
