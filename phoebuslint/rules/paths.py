@@ -1,7 +1,14 @@
-from phoebusgen import Screen
-from phoebusgen.properties import HasFile, HasActionsRulesAndScripts, OpenDisplayAction, OpenFileAction
-from ..linter import LintRule, RuleViolation
 from pathlib import Path
+
+from phoebusgen.v4 import Screen
+from phoebusgen.v4.properties import (
+    HasActionsRulesAndScripts,
+    HasFile,
+    OpenDisplayAction,
+    OpenFileAction,
+)
+
+from ..linter import LintRule, RuleViolation
 
 
 def check_path_exists_relative_to_screen(screen: Screen, file_path: str) -> bool:
@@ -34,7 +41,8 @@ class FilePropertyPathDoesNotExist(LintRule):
                 )
 
         return violations if violations else None
-    
+
+
 class OpenFileActionPathDoesNotExist(LintRule):
     """Rule that checks if file paths in OpenFileAction actions exist."""
 
@@ -47,8 +55,15 @@ class OpenFileActionPathDoesNotExist(LintRule):
         violations = []
         for widget in screen.get_widgets_by_property_class(HasActionsRulesAndScripts):
             for action in widget.actions:
-                if isinstance(action, OpenFileAction) or isinstance(action, OpenDisplayAction):
-                    if action.file is not None and not check_path_exists_relative_to_screen(screen, action.file):
+                if isinstance(action, OpenFileAction) or isinstance(
+                    action, OpenDisplayAction
+                ):
+                    if (
+                        action.file is not None
+                        and not check_path_exists_relative_to_screen(
+                            screen, action.file
+                        )
+                    ):
                         violations.append(
                             cls.rule_violation_factory(
                                 screen,
@@ -72,7 +87,10 @@ class OpenDisplayActionPathIsNotABobfile(LintRule):
         for widget in screen.get_widgets_by_property_class(HasActionsRulesAndScripts):
             for action in widget.actions:
                 if isinstance(action, OpenDisplayAction):
-                    if action.file is not None and not Path(action.file).suffix == ".bob":
+                    if (
+                        action.file is not None
+                        and not Path(action.file).suffix == ".bob"
+                    ):
                         violations.append(
                             cls.rule_violation_factory(
                                 screen,
@@ -82,7 +100,7 @@ class OpenDisplayActionPathIsNotABobfile(LintRule):
                         )
 
         return violations if violations else None
-    
+
 
 class ScriptFilePathDoesNotExist(LintRule):
     """Rule that checks if script file paths in widgets exist."""
@@ -105,7 +123,7 @@ class ScriptFilePathDoesNotExist(LintRule):
                     )
 
         return violations if violations else None
-    
+
 
 class EmbeddedDisplayPathDoesNotExist(LintRule):
     """Rule that checks if an EmbeddedDisplay widget references a non-existent file."""
@@ -118,7 +136,12 @@ class EmbeddedDisplayPathDoesNotExist(LintRule):
 
         violations = []
         for embedded_display in screen.get_widgets_by_property_class(HasFile):
-            if embedded_display.file is not None and not check_path_exists_relative_to_screen(screen, embedded_display.file):
+            if (
+                embedded_display.file is not None
+                and not check_path_exists_relative_to_screen(
+                    screen, embedded_display.file
+                )
+            ):
                 violations.append(
                     cls.rule_violation_factory(
                         screen,
@@ -127,7 +150,7 @@ class EmbeddedDisplayPathDoesNotExist(LintRule):
                     )
                 )
         return violations if violations else None
-    
+
 
 class EmbeddedDisplayPathIsNotABobfile(LintRule):
     """Rule that checks if an EmbeddedDisplay widget references a non-.bob file."""
@@ -140,7 +163,10 @@ class EmbeddedDisplayPathIsNotABobfile(LintRule):
 
         violations = []
         for embedded_display in screen.get_widgets_by_property_class(HasFile):
-            if embedded_display.file is not None and not Path(embedded_display.file).suffix == ".bob":
+            if (
+                embedded_display.file is not None
+                and not Path(embedded_display.file).suffix == ".bob"
+            ):
                 violations.append(
                     cls.rule_violation_factory(
                         screen,
@@ -149,4 +175,3 @@ class EmbeddedDisplayPathIsNotABobfile(LintRule):
                     )
                 )
         return violations if violations else None
-    

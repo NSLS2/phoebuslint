@@ -25,6 +25,8 @@ phoebuslint = "phoebuslint.__main__:main"
 
 [project.optional-dependencies]
 dev = [
+  "pytest",
+  "import-linter",
   "pre-commit",
   "ruff",
   "tox-direct",

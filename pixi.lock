@@ -1099,9 +1099,11 @@ packages:
   requires_python: '>=3.5'
 - pypi: ./
   name: phoebuslint
-  version: 0.1.dev9+g6c3f8920c.d20260310
-  sha256: 7ea0f81f01d849e1c978e7902201b179f5edac3e2a2e9740f3c0b2056ae2940b
+  version: 0.1.dev10+gedb9b6b89.d20260310
+  sha256: ab67cd448daf3d1b5041d636562795b5b359d70f1b42b5c3979d271da746a376
   requires_dist:
+  - pytest ; extra == 'dev'
+  - import-linter ; extra == 'dev'
   - pre-commit ; extra == 'dev'
   - ruff ; extra == 'dev'
   - tox-direct ; extra == 'dev'

@@ -4,6 +4,7 @@ from phoebusgen.v4 import Screen
 
 from ..linter import LintRule, RuleViolation, SeverityLevel
 
+
 class MissingDisplayTag(LintRule):
     """Rule that checks if a screen is missing the top-level <display> tag."""
 

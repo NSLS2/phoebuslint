@@ -6,9 +6,9 @@ from phoebuslint.rules import (
     DefaultTitleSet,
     EmptyScreen,
     ExtraTagsInDisplay,
+    ScreenHeightOrWidthZeroOrNegative,
     TitleEmptyOrNotSet,
     TopLevelTagNotDisplay,
-    ScreenHeightOrWidthZeroOrNegative
 )
 
 
@@ -32,7 +32,6 @@ def test_extra_tags_in_display_rule(sample_empty_screen: Screen):
     assert violations[0].details.startswith("Unexpected tag found in <display>.")
 
 
-
 def test_title_empty_or_not_set(sample_empty_screen: Screen):
     if sample_empty_screen.name.strip() == "":
         assert TitleEmptyOrNotSet.check(sample_empty_screen) is not None
@@ -41,14 +40,12 @@ def test_title_empty_or_not_set(sample_empty_screen: Screen):
     assert TitleEmptyOrNotSet.check(sample_empty_screen) is None
 
 
-
 def test_default_title_set_rule(sample_empty_screen: Screen):
     if sample_empty_screen.name == "Display":
         assert DefaultTitleSet.check(sample_empty_screen) is not None
 
     sample_empty_screen.name = "Control Panel"
     assert DefaultTitleSet.check(sample_empty_screen) is None
-
 
 
 def test_empty_screen_rule(sample_empty_screen: Screen):

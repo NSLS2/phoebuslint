@@ -1,4 +1,5 @@
 from phoebusgen.v4 import Screen
+from phoebusgen.v4.widgets import ActionButton, Label, TextUpdate
 
 from ..linter import LintRule, RuleViolation
 
@@ -57,7 +58,7 @@ class ActionButtonWithNoActions(LintRule):
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
         return rule_violations if len(rule_violations) > 0 else None
-    
+
 
 class EmptyLabel(LintRule):
     """Rule that checks for Label widgets that have empty text."""
@@ -74,7 +75,7 @@ class EmptyLabel(LintRule):
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
         return rule_violations if len(rule_violations) > 0 else None
-    
+
 
 class LabelWithExcessiveTextLength(LintRule):
     """Rule that checks for Label widgets that have excessively long text."""
@@ -88,7 +89,10 @@ class LabelWithExcessiveTextLength(LintRule):
         for widget in screen.get_widgets_by_type(Label):
             # Assumes typical DPI of 96 and average character width of font size * 0.5
             # TODO: Make this configurable
-            if len(widget.text) * widget.font.size * 0.5 * 96 / 72 > widget.width and not widget.auto_size:
+            if (
+                len(widget.text) * widget.font.size * 0.5 * 96 / 72 > widget.width
+                and not widget.auto_size
+            ):
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
@@ -110,4 +114,3 @@ class TextUpdateWithNoDefinedPV(LintRule):
                     cls.rule_violation_factory(screen=screen, widget=text_update)
                 )
         return rule_violations if len(rule_violations) > 0 else None
-

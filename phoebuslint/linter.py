@@ -1,6 +1,7 @@
+import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum
+from enum import IntEnum
 from pathlib import Path
 
 import yaml
@@ -14,7 +15,15 @@ GREEN = "\033[32m"
 BLUE = "\033[34m"
 RESET = "\033[0m"  # Resets the color to default
 
-PropertyBaseT = TypeVar("PropertyBaseT", bound=PropertyBase)
+
+class SeverityLevel(IntEnum):
+    """Enum representing severity levels for rule violations."""
+
+    INFO = 1
+    WARNING = 2
+    ERROR = 3
+    CRITICAL = 4
+
 
 @dataclass
 class RuleViolation:
@@ -34,14 +43,17 @@ class RuleViolation:
     rule_name: str
     rule_code: str
     rule_severity: SeverityLevel
-    screen: Screen
+    screen: Screen | Path
     widget: Widget | None = None
     property: str | None = None
     property_element: str | None = None
     details: str = ""
 
     def __str__(self) -> str:
-        location = f"Screen: {self.screen.bob_file}"
+        screen_path = (
+            self.screen.bob_file if isinstance(self.screen, Screen) else self.screen
+        )
+        location = f"Screen: {screen_path}"
         if self.widget:
             location += f", Widget: {self.widget.name}"
         if self.property:
@@ -90,12 +102,12 @@ class RuleViolationFactory:
         )
 
 
-class LintRule(RuleViolationFactory, Generic[PropertyBaseT], ABC):
+class LintRule(RuleViolationFactory, ABC):
     """Abstract base class for stateless linting rules."""
 
     @classmethod
     @abstractmethod
-    def check(cls: type[PropertyBaseT], screen: Screen) -> list[RuleViolation] | None:
+    def check(cls, screen: Screen) -> list[RuleViolation] | None:
         """Check the given  element for issue covered by specific rule.
 
         Args:
@@ -136,7 +148,7 @@ class FixableLintRule(LintRule, ABC):
     @classmethod
     @abstractmethod
     def fix(cls, screen: Screen) -> bool:
-        """Attempt to automatically fix the issue covered by this rule on the given screen.
+        """Attempt to fix the issue covered by this rule on the given screen.
 
         Args:
             screen (Screen): The screen to attempt to fix.
@@ -147,55 +159,19 @@ class FixableLintRule(LintRule, ABC):
 
 
 class FixableRecursiveLintRule(RecursiveLintRule, ABC):
-    """Abstract base class for recursive linting rules that can be automatically fixed."""
+    """Abstract base class for recursive linting rules that can be fixed."""
 
     @classmethod
     @abstractmethod
     def fix(
         cls, linter: "PhoebusLinter", screen: Screen, visited_screens: dict[Path, bool]
     ) -> bool:
-        """Attempt to automatically fix the issue covered by this rule on the given screen, potentially requiring recursive linting.
+        """Attempt to fix the issue on the screen, potentially requiring recursion.
 
         Args:
-            linter (PhoebusLinter): The linter instance. Used to recursively lint linked screens.
+            linter (PhoebusLinter): Linter instance. Used in recursive fixes.
             screen (Screen): The screen to attempt to fix.
-            visited_screens (dict[Path, bool]): Dictionary of already visited screens to avoid re-linting.
-        Returns:
-            bool: True if a fix was applied, False otherwise.
-        """
-        ...
-
-
-class FixableLintRule(LintRule, ABC):
-    """Abstract base class for linting rules that can be automatically fixed."""
-
-    @classmethod
-    @abstractmethod
-    def fix(cls, screen: Screen) -> bool:
-        """Attempt to automatically fix the issue covered by this rule on the given screen.
-
-        Args:
-            screen (Screen): The screen to attempt to fix.
-        Returns:
-            bool: True if a fix was applied, False otherwise.
-        """
-        ...
-
-
-class FixableRecursiveLintRule(RecursiveLintRule, ABC):
-    """Abstract base class for recursive linting rules that can be automatically fixed."""
-
-    @classmethod
-    @abstractmethod
-    def fix(
-        cls, linter: "PhoebusLinter", screen: Screen, visited_screens: dict[Path, bool]
-    ) -> bool:
-        """Attempt to automatically fix the issue covered by this rule on the given screen, potentially requiring recursive linting.
-
-        Args:
-            linter (PhoebusLinter): The linter instance. Used to recursively lint linked screens.
-            screen (Screen): The screen to attempt to fix.
-            visited_screens (dict[Path, bool]): Dictionary of already visited screens to avoid re-linting.
+            visited_screens (dict[Path, bool]): Visited screens dict to avoid repeats.
         Returns:
             bool: True if a fix was applied, False otherwise.
         """
@@ -208,32 +184,24 @@ class PhoebusLinter:
     def __init__(
         self,
         fail_severity: SeverityLevel = SeverityLevel.WARNING,
-        disabled_rule_codes: list[str] | None = None,
+        disable_rules: list[str] = [],
     ):
-        if disabled_rule_codes is None:
-            disabled_rule_codes = []
-        self._enabled_rules = (
-            LintRule.__subclasses__() + RecursiveLintRule.__subclasses__()
-        )
-        for disabled_rule_code in disabled_rule_codes:
-            disabled_rule = next(
-                (
-                    rule
-                    for rule in self._enabled_rules
-                    if rule.rule_code == disabled_rule_code
-                ),
-                None,
-            )
-            if disabled_rule is not None:
-                self._enabled_rules.remove(disabled_rule)
+        self._enabled_rules = {
+            rule
+            for rule in (LintRule.__subclasses__() + RecursiveLintRule.__subclasses__())
+            if not inspect.isabstract(rule)
+            and rule.rule_code not in disable_rules
+        }
+
         self._fail_severity = fail_severity
 
     @classmethod
-    def from_yaml(cls, yaml_content: str) -> "PhoebusLinter":
-        data = yaml.safe_load(yaml_content)
-        disabled_rule_codes = data.get("disable_rules", [])
+    def from_yaml(cls, config_path: Path | str) -> "PhoebusLinter":
+        with open(config_path, "r") as f:
+            data = yaml.safe_load(f)
+        disable_rules = data.get("disable_rules", [])
         fail_severity = SeverityLevel[data.get("fail_severity", "warning").upper()]
-        return cls(fail_severity=fail_severity, disabled_rule_codes=disabled_rule_codes)
+        return cls(fail_severity=fail_severity, disable_rules=disable_rules)
 
     def lint_screen(
         self, screen: Screen, visited: dict[Path, list[RuleViolation]] | None = None
@@ -303,7 +271,20 @@ class PhoebusLinter:
         if not file_path.is_file() or file_path.suffix != ".bob":
             raise ValueError(f"File {file_path} does not exist or is not a .bob file.")
 
-        screen = Screen(f_name=str(file_path))
+        try:
+            screen = Screen(f_name=str(file_path))
+        except Exception as e:
+            return {
+                file_path: [
+                    RuleViolation(
+                        rule_name="ScreenNotParsable",
+                        rule_code="S101",
+                        rule_severity=SeverityLevel.ERROR,
+                        screen=file_path,
+                        details=f"Error parsing .bob file: {e}",
+                    )
+                ]
+            }
         return self.lint_screen(screen, visited=visited)
 
     def lint_directory(self, dir_path: Path) -> dict[Path, list[RuleViolation]]:
