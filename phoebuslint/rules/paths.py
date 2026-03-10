@@ -149,3 +149,4 @@ class EmbeddedDisplayPathIsNotABobfile(LintRule):
                     )
                 )
         return violations if violations else None
+    

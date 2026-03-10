@@ -107,12 +107,5 @@ lint = "pre-commit run --all-files"
 
 [tool.pixi.dependencies]
 pre-commit = ">=4.5.1,<5"
-<<<<<<< HEAD
-ruff = ">=0.14.13,<0.15"
-
-[tool.importlinter]
-root_package = "phoebuslint"
-=======
 ruff = ">=0.15.2,<0.16"
 import-linter = ">=2.10,<3"
->>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe

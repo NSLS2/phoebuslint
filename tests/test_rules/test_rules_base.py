@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-=======
 from phoebusgen.v4 import Screen
->>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
 from phoebuslint import LintRule, RecursiveLintRule
 
 

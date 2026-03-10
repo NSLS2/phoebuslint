@@ -8,6 +8,7 @@ from phoebuslint.rules import (
     ExtraTagsInDisplay,
     TitleEmptyOrNotSet,
     TopLevelTagNotDisplay,
+    ScreenHeightOrWidthZeroOrNegative
 )
 
 
@@ -31,6 +32,25 @@ def test_extra_tags_in_display_rule(sample_empty_screen: Screen):
     assert violations[0].details.startswith("Unexpected tag found in <display>.")
 
 
+
+def test_title_empty_or_not_set(sample_empty_screen: Screen):
+    if sample_empty_screen.name.strip() == "":
+        assert TitleEmptyOrNotSet.check(sample_empty_screen) is not None
+
+    sample_empty_screen.name = "Main Screen"
+    assert TitleEmptyOrNotSet.check(sample_empty_screen) is None
+
+
+
+def test_default_title_set_rule(sample_empty_screen: Screen):
+    if sample_empty_screen.name == "Display":
+        assert DefaultTitleSet.check(sample_empty_screen) is not None
+
+    sample_empty_screen.name = "Control Panel"
+    assert DefaultTitleSet.check(sample_empty_screen) is None
+
+
+
 def test_empty_screen_rule(sample_empty_screen: Screen):
     violations = EmptyScreen.check(sample_empty_screen)
     assert violations is not None
@@ -42,17 +62,22 @@ def test_empty_screen_rule(sample_empty_screen: Screen):
     assert EmptyScreen.check(sample_empty_screen) is None
 
 
-def test_title_empty_or_not_set(sample_empty_screen: Screen):
-    if sample_empty_screen.name.strip() == "":
-        assert TitleEmptyOrNotSet.check(sample_empty_screen) is not None
+def test_screen_height_or_width_zero_or_negative(sample_empty_screen: Screen):
 
-    sample_empty_screen.name = "Main Screen"
-    assert TitleEmptyOrNotSet.check(sample_empty_screen) is None
+    sample_empty_screen.width = 0
+    violations = ScreenHeightOrWidthZeroOrNegative.check(sample_empty_screen)
+    assert violations is not None
+    assert len(violations) == 1
+    assert violations[0].rule_code == ScreenHeightOrWidthZeroOrNegative.rule_code
+    assert "width" in violations[0].details
 
+    sample_empty_screen.width = 800
+    sample_empty_screen.height = -100
+    violations = ScreenHeightOrWidthZeroOrNegative.check(sample_empty_screen)
+    assert violations is not None
+    assert len(violations) == 1
+    assert violations[0].rule_code == ScreenHeightOrWidthZeroOrNegative.rule_code
+    assert "height" in violations[0].details
 
-def test_default_title_set_rule(sample_empty_screen: Screen):
-    if sample_empty_screen.name == "Display":
-        assert DefaultTitleSet.check(sample_empty_screen) is not None
-
-    sample_empty_screen.name = "Control Panel"
-    assert DefaultTitleSet.check(sample_empty_screen) is None
+    sample_empty_screen.height = 600
+    assert ScreenHeightOrWidthZeroOrNegative.check(sample_empty_screen) is None

@@ -13,16 +13,8 @@ YELLOW = "\033[33m"
 GREEN = "\033[32m"
 BLUE = "\033[34m"
 RESET = "\033[0m"  # Resets the color to default
-<<<<<<< HEAD
-=======
 
-
-class SeverityLevel(int, Enum):
-    WARNING = 1
-    ERROR = 2
-    CRITICAL = 3
->>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
-
+PropertyBaseT = TypeVar("PropertyBaseT", bound=PropertyBase)
 
 @dataclass
 class RuleViolation:
@@ -98,12 +90,12 @@ class RuleViolationFactory:
         )
 
 
-class LintRule(RuleViolationFactory, ABC):
+class LintRule(RuleViolationFactory, Generic[PropertyBaseT], ABC):
     """Abstract base class for stateless linting rules."""
 
     @classmethod
     @abstractmethod
-    def check(cls, screen: Screen) -> list[RuleViolation] | None:
+    def check(cls: type[PropertyBaseT], screen: Screen) -> list[RuleViolation] | None:
         """Check the given  element for issue covered by specific rule.
 
         Args:
@@ -123,15 +115,9 @@ class RecursiveLintRule(RuleViolationFactory, ABC):
         cls,
         linter: "PhoebusLinter",
         screen: Screen,
-<<<<<<< HEAD
-        visited_screens: dict[Path, list[RuleViolation]],
-    ) -> list[RuleViolation] | None:
-        """Check the given phoebus element for issue covered by specific rule, potentially requiring recursive linting.
-=======
         visited: dict[Path, list[RuleViolation]] | None,
     ) -> list[RuleViolation] | None:
         """Recursively check the given screen for issues covered by this rule.
->>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
 
         Args:
             linter (PhoebusLinter): The linter instance. Recursively lints screens.
@@ -144,21 +130,52 @@ class RecursiveLintRule(RuleViolationFactory, ABC):
         ...
 
 
+class FixableLintRule(LintRule, ABC):
+    """Abstract base class for linting rules that can be automatically fixed."""
+
+    @classmethod
+    @abstractmethod
+    def fix(cls, screen: Screen) -> bool:
+        """Attempt to automatically fix the issue covered by this rule on the given screen.
+
+        Args:
+            screen (Screen): The screen to attempt to fix.
+        Returns:
+            bool: True if a fix was applied, False otherwise.
+        """
+        ...
+
+
+class FixableRecursiveLintRule(RecursiveLintRule, ABC):
+    """Abstract base class for recursive linting rules that can be automatically fixed."""
+
+    @classmethod
+    @abstractmethod
+    def fix(
+        cls, linter: "PhoebusLinter", screen: Screen, visited_screens: dict[Path, bool]
+    ) -> bool:
+        """Attempt to automatically fix the issue covered by this rule on the given screen, potentially requiring recursive linting.
+
+        Args:
+            linter (PhoebusLinter): The linter instance. Used to recursively lint linked screens.
+            screen (Screen): The screen to attempt to fix.
+            visited_screens (dict[Path, bool]): Dictionary of already visited screens to avoid re-linting.
+        Returns:
+            bool: True if a fix was applied, False otherwise.
+        """
+        ...
+
+
 class PhoebusLinter:
     """Class containing main linting logic for Phoebus screens."""
 
     def __init__(
         self,
         fail_severity: SeverityLevel = SeverityLevel.WARNING,
-<<<<<<< HEAD
-        disabled_rule_codes: list[str] = [],
-    ):
-=======
         disabled_rule_codes: list[str] | None = None,
     ):
         if disabled_rule_codes is None:
             disabled_rule_codes = []
->>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
         self._enabled_rules = (
             LintRule.__subclasses__() + RecursiveLintRule.__subclasses__()
         )
@@ -183,11 +200,7 @@ class PhoebusLinter:
         return cls(fail_severity=fail_severity, disabled_rule_codes=disabled_rule_codes)
 
     def lint_screen(
-<<<<<<< HEAD
-        self, screen: Screen, visited_screens: dict[Path, list[RuleViolation]] = {}
-=======
         self, screen: Screen, visited: dict[Path, list[RuleViolation]] | None = None
->>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
     ) -> dict[Path, list[RuleViolation]]:
         """Lint a single Phoebus screen.
 
@@ -212,15 +225,6 @@ class PhoebusLinter:
 
         visited[file_path] = []
         for rule_cls in self._enabled_rules:
-<<<<<<< HEAD
-            if issubclass(rule_cls, RecursiveLintRule):
-                violations_for_rule = rule_cls.check(self, screen, visited_screens)
-            else:
-                violations_for_rule = rule_cls.check(screen)
-            visited_screens[file_path].extend(
-                violations_for_rule if violations_for_rule is not None else []
-            )
-=======
             try:
                 if issubclass(rule_cls, RecursiveLintRule):
                     violations_for_rule = rule_cls.check(self, screen, visited)
@@ -239,18 +243,13 @@ class PhoebusLinter:
                         details=f"Error while checking rule: {e}",
                     )
                 )
->>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
 
         # If being called from higher level function, store results to avoid re-linting
 
         return {file_path: visited[file_path]}
 
     def lint_file(
-<<<<<<< HEAD
-        self, file_path: Path, visited_screens: dict[Path, list[RuleViolation]] = {}
-=======
         self, file_path: Path, visited: dict[Path, list[RuleViolation]] | None = None
->>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
     ) -> dict[Path, list[RuleViolation]]:
         """Lint a single .bob file.
 
@@ -269,11 +268,7 @@ class PhoebusLinter:
             raise ValueError(f"File {file_path} does not exist or is not a .bob file.")
 
         screen = Screen(f_name=str(file_path))
-<<<<<<< HEAD
-        return self.lint_screen(screen, visited_screens=visited_screens)
-=======
         return self.lint_screen(screen, visited=visited)
->>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
 
     def lint_directory(self, dir_path: Path) -> dict[Path, list[RuleViolation]]:
         """Lint all .bob files in the given directory and its subdirectories.
@@ -290,33 +285,18 @@ class PhoebusLinter:
 
         return visited
 
-<<<<<<< HEAD
-    def display_linting_report(
-        self, linting_results: dict[Path, list[RuleViolation]]
-    ) -> None:
-=======
     def display_linting_report(self, results: dict[Path, list[RuleViolation]]) -> None:
->>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
         """Display a linting report based on the given linting results.
 
         Args:
             results (dict[Path, list[RuleViolation]]): Map of paths to violations.
         """
 
-<<<<<<< HEAD
-        n_screens = len(linting_results)
-        n_screens_with_issues = sum(
-            1 for issues in linting_results.values() if len(issues) > 0
-        )
-        print(
-            f"PhoebusLint scanned {n_screens} screens, {n_screens_with_issues} with rule violations.\n"
-=======
         n_screens = len(results)
         n_screens_with_issues = sum(1 for issues in results.values() if len(issues) > 0)
         print(
             f"PhoebusLint scanned {n_screens} screens, ",
             f"{n_screens_with_issues} with violations.\n",
->>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
         )
         if n_screens_with_issues == 0:
             print(f"{GREEN}No violations found!{RESET}\n")
@@ -344,30 +324,11 @@ class PhoebusLinter:
         for sevr in SeverityLevel:
             n_severity = sum(
                 1
-<<<<<<< HEAD
-                for violations in linting_results.values()
-=======
                 for violations in results.values()
->>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
                 for violation in violations
                 if violation.rule_severity == sevr
             )
             if n_severity > 0:
-<<<<<<< HEAD
-                color = RED if severity_level >= SeverityLevel.ERROR else YELLOW
-                print(
-                    f"{color}Total {severity_level.name.capitalize()}s: {n_severity}{RESET}"
-                )
-        print()
-
-        total_issues = sum(len(issues) for issues in linting_results.values())
-        if total_issues > 0:
-            print(f"Found {total_issues} total issues.")
-
-    def did_linting_pass(
-        self, linting_results: dict[Path, list[RuleViolation]]
-    ) -> bool:
-=======
                 color = RED if sevr >= SeverityLevel.ERROR else YELLOW
                 print(f"{color}Total {sevr.name.capitalize()}s: {n_severity}{RESET}")
         print()
@@ -377,7 +338,6 @@ class PhoebusLinter:
             print(f"Found {total_issues} total issues.")
 
     def did_linting_pass(self, results: dict[Path, list[RuleViolation]]) -> bool:
->>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
         """Determine if the linting results pass based on the configured fail severity.
         Args:
             results (dict[Path, list[RuleViolation]]): Map of paths to violations.
@@ -390,9 +350,5 @@ class PhoebusLinter:
                 violation.rule_severity < self._fail_severity
                 for violation in violations_by_screen
             )
-<<<<<<< HEAD
-            for violations_by_screen in linting_results.values()
-=======
             for violations_by_screen in results.values()
->>>>>>> e028c9a78aaeafe17aa94d1289bb423569f2affe
         )

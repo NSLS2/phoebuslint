@@ -27,6 +27,7 @@ class TopLevelTagNotDisplay(LintRule):
 
     rule_code = "S103"
     description = "Root tag is not <display>."
+    rule_severity = SeverityLevel.CRITICAL
 
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation] | None:
