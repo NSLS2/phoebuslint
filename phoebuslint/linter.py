@@ -166,6 +166,42 @@ class FixableRecursiveLintRule(RecursiveLintRule, ABC):
         ...
 
 
+class FixableLintRule(LintRule, ABC):
+    """Abstract base class for linting rules that can be automatically fixed."""
+
+    @classmethod
+    @abstractmethod
+    def fix(cls, screen: Screen) -> bool:
+        """Attempt to automatically fix the issue covered by this rule on the given screen.
+
+        Args:
+            screen (Screen): The screen to attempt to fix.
+        Returns:
+            bool: True if a fix was applied, False otherwise.
+        """
+        ...
+
+
+class FixableRecursiveLintRule(RecursiveLintRule, ABC):
+    """Abstract base class for recursive linting rules that can be automatically fixed."""
+
+    @classmethod
+    @abstractmethod
+    def fix(
+        cls, linter: "PhoebusLinter", screen: Screen, visited_screens: dict[Path, bool]
+    ) -> bool:
+        """Attempt to automatically fix the issue covered by this rule on the given screen, potentially requiring recursive linting.
+
+        Args:
+            linter (PhoebusLinter): The linter instance. Used to recursively lint linked screens.
+            screen (Screen): The screen to attempt to fix.
+            visited_screens (dict[Path, bool]): Dictionary of already visited screens to avoid re-linting.
+        Returns:
+            bool: True if a fix was applied, False otherwise.
+        """
+        ...
+
+
 class PhoebusLinter:
     """Class containing main linting logic for Phoebus screens."""
 
