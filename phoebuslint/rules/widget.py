@@ -1,6 +1,8 @@
 from phoebusgen.v4 import Screen
 from phoebusgen.v4.widgets import ActionButton, Label, TextUpdate
-from phoebusgen.v4.properties import HasActionsRulesAndScripts, HasPVName, OpenDisplayAction, OpenFileAction, OpenWebpageAction, HasItemsFromPV
+from phoebusgen.v4.properties import OpenDisplayAction, OpenFileAction, OpenWebpageAction
+from phoebusgen.v4.properties.behavior import HasActionsRulesAndScripts
+from phoebusgen.v4.properties.display import HasPVName, HasItemsFromPV
 from phoebusgen.v4.widgets import Widget, EmbeddedDisplay, ActionButton
 from pathlib import Path
 
@@ -43,7 +45,7 @@ class WidgetOutOfBounds(LintRule):
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
-        return rule_violations if len(rule_violations) > 0 else None
+        return rule_violations
 
 
 class ActionButtonWithNoActions(LintRule):
@@ -53,14 +55,14 @@ class ActionButtonWithNoActions(LintRule):
     description = "ActionButton has no actions defined."
 
     @classmethod
-    def check(cls, screen: Screen) -> list[RuleViolation] | None:
+    def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
         for widget in screen.get_widgets_by_type(ActionButton):
             if len(widget.actions) == 0:
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
-        return rule_violations if len(rule_violations) > 0 else None
+        return rule_violations
 
 
 class EmptyLabel(LintRule):
@@ -70,14 +72,14 @@ class EmptyLabel(LintRule):
     description = "Label has empty text."
 
     @classmethod
-    def check(cls, screen: Screen) -> list[RuleViolation] | None:
+    def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
         for widget in screen.get_widgets_by_type(Label):
             if widget.text.strip() == "":
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
-        return rule_violations if len(rule_violations) > 0 else None
+        return rule_violations
 
 
 class LabelWithExcessiveTextLength(LintRule):
@@ -87,7 +89,7 @@ class LabelWithExcessiveTextLength(LintRule):
     description = "Label has excessively long text."
 
     @classmethod
-    def check(cls, screen: Screen) -> list[RuleViolation] | None:
+    def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
         for widget in screen.get_widgets_by_type(Label):
             # Assumes typical DPI of 96 and average character width of font size * 0.5
@@ -99,7 +101,7 @@ class LabelWithExcessiveTextLength(LintRule):
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
-        return rule_violations if len(rule_violations) > 0 else None
+        return rule_violations
 
 
 class TextUpdateWithNoDefinedPV(LintRule):
@@ -109,21 +111,20 @@ class TextUpdateWithNoDefinedPV(LintRule):
     description = "Text update widget with no defined PV."
 
     @classmethod
-    def check(cls, screen: Screen) -> list[RuleViolation] | None:
+    def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
         for text_update in screen.get_widgets_by_type(TextUpdate):
             if text_update.pv_name is None or text_update.pv_name.strip() == "":
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=text_update)
                 )
-        return rule_violations if len(rule_violations) > 0 else None
         return rule_violations
 
 
 class EmbeddedDisplayNoFilePathSet(LintRule):
     """Rule that checks if an EmbeddedDisplay widget has no file path set."""
 
-    rule_code = "W103"
+    rule_code = "W107"
     rule_severity = SeverityLevel.ERROR
     description = "EmbeddedDisplay widget has no file path set."
 
@@ -141,7 +142,7 @@ class EmbeddedDisplayNoFilePathSet(LintRule):
 class EmbeddedDisplayPathDoesNotExist(LintRule):
     """Rule that checks if an EmbeddedDisplay widget has a path that does not exist."""
 
-    rule_code = "W104"
+    rule_code = "W108"
     rule_severity = SeverityLevel.ERROR
     description = "EmbeddedDisplay widget has a path that does not exist."
 
@@ -163,8 +164,11 @@ class EmbeddedDisplayPathDoesNotExist(LintRule):
 class EmbeddedDisplayPathIsOpiFile(LintRule):
     """Rule that checks if an EmbeddedDisplay widget has a path that points to an OPI file."""
 
-    rule_code = "W105"
-    rule_severity = SeverityLevel.WARNING # TODO: Make this ERROR. We want to get out of the habit of mixing bob and opi
+    rule_code = "W109"
+
+    # TODO: Make this ERROR. We want to get out of the habit of mixing bob and opi
+    rule_severity = SeverityLevel.WARNING 
+
     description = "EmbeddedDisplay widget has a path that points to an OPI file, not a bob file."
 
     @classmethod
@@ -184,7 +188,7 @@ class EmbeddedDisplayPathIsOpiFile(LintRule):
 class OpenDisplayActionPathNotSet(LintRule):
     """Rule that checks if an OpenDisplayAction has no file path set."""
 
-    rule_code = "W106"
+    rule_code = "W110"
     rule_severity = SeverityLevel.ERROR
     description = "OpenDisplayAction has no file path set."
 
@@ -201,10 +205,11 @@ class OpenDisplayActionPathNotSet(LintRule):
                     )
         return rule_violations
 
+
 class OpenDisplayActionPathDoesNotExist(LintRule):
     """Rule that checks if an OpenDisplayAction has a path that does not exist."""
 
-    rule_code = "W107"
+    rule_code = "W111"
     rule_severity = SeverityLevel.ERROR
     description = "OpenDisplayAction has a path that does not exist."
 
@@ -226,11 +231,12 @@ class OpenDisplayActionPathDoesNotExist(LintRule):
 
         return rule_violations
 
+
 class OpenDisplayActionPathIsOpiFile(LintRule):
     """Rule that checks if an OpenDisplayAction has a path that points to an OPI file."""
 
-    rule_code = "W108"
-    rule_severity = SeverityLevel.ERROR
+    rule_code = "W112"
+    rule_severity = SeverityLevel.WARNING
     description = "OpenDisplayAction has a path that points to an OPI file, not a bob file."
 
     @classmethod
@@ -255,7 +261,7 @@ class OpenDisplayActionPathIsOpiFile(LintRule):
 class OpenFileActionPathDoesNotExist(LintRule):
     """Rule that checks if an OpenFileAction has a path that does not exist."""
 
-    rule_code = "W109"
+    rule_code = "W113"
     description = "OpenFileAction has a path that does not exist."
 
     @classmethod
@@ -280,7 +286,7 @@ class OpenFileActionPathDoesNotExist(LintRule):
 class OpenWebpageActionInvalidUrl(LintRule):
     """Rule that checks if an OpenWebpageAction has an invalid URL."""
 
-    rule_code = "W110"
+    rule_code = "W114"
     description = "OpenWebpageAction has an invalid URL."
 
     @classmethod
@@ -302,7 +308,7 @@ class OpenWebpageActionInvalidUrl(LintRule):
 class PVNamePropertyNotSet(LintRule):
     """Rule that checks if a widget with a PVName property has it set."""
 
-    rule_code = "W111"
+    rule_code = "W115"
     rule_severity = SeverityLevel.ERROR
     description = "Widget with PVName property has it not set."
 

@@ -1,7 +1,9 @@
 from ..linter import RecursiveLintRule, RuleViolation
 from pathlib import Path
 from phoebusgen.v4 import Screen
-from phoebusgen.v4.properties import HasPVName, HasText, HasMacros
+from phoebusgen.v4.widgets import EmbeddedDisplay
+from phoebusgen.v4.properties.display import HasPVName, HasText
+from phoebusgen.v4.properties.widget import HasMacros
 import copy
 
 def _can_expand_macros(value: str, macros: dict[str, str]) -> bool:

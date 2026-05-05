@@ -45,6 +45,7 @@ class TestRule(RuleViolationFactory):
     description = "Example rule for testing."
     rule_severity = SeverityLevel.WARNING
 
+
 def test_rule_violation_factory(tmp_path):
     screen_path = tmp_path / "test_screen.bob"
     screen = Screen(f_name=screen_path)
@@ -81,6 +82,7 @@ def test_rule_violation_factory(tmp_path):
     assert violation.details == "Test violation details"
     assert str(violation) == f"[T001] TestRule: Test violation details (Screen: {screen_path}, Widget: test_label, Property: text, Element: text_elem)"  # noqa: E501
 
+
 def test_rule_violation_factory_rule_classes(all_rule_classes):
     """Test the rule_violation factory method for LintRule subclasses."""
     for rule_cls in all_rule_classes:
@@ -97,15 +99,17 @@ def test_rule_violation_factory_rule_classes(all_rule_classes):
             f"Screen file mismatch in {rule_cls.__name__}"
         )
 
+
 def test_base_linter_configuration(all_rule_classes):
     linter = PhoebusLinter()
     assert linter._enabled_rules == all_rule_classes
     assert linter._fail_severity == SeverityLevel.WARNING
 
+
 def test_linter_configuration_from_yaml(tmp_path, all_rule_classes):
     yaml_content = """
     fail_severity: ERROR
-    disable_rules:
+    disabled_rule_codes:
       - S102
       - S103
     """
@@ -117,6 +121,7 @@ def test_linter_configuration_from_yaml(tmp_path, all_rule_classes):
     assert linter._fail_severity == SeverityLevel.ERROR
     assert len(linter._enabled_rules) == len(all_rule_classes) - 2
     assert all(rule_cls.rule_code not in ["S102", "S103"] for rule_cls in linter._enabled_rules)
+
 
 @pytest.mark.parametrize(
     "num_warnings, num_errors, num_criticals, fail_sevr, expected",

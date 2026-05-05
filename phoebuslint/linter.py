@@ -31,15 +31,24 @@ class SeverityLevel(IntEnum):
 class RuleViolation:
     """Dataclass representing a rule violation found during linting.
 
-    Attributes:
-        rule_name (str): The name of the rule that was violated.
-        rule_code (str): The code of the rule that was violated.
-        rule_severity (SeverityLevel): The severity level of the rule violation.
-        screen (Screen): The screen where the violation was found.
-        widget (Widget | None): The widget where the violation was found.
-        property (str | None): The property name where the violation was found.
-        property_element (str | None): Property elem where the violation was found.
-        details (str): Additional details about the violation.
+    Attributes
+    ----------
+    rule_name : str
+        The name of the rule that was violated.
+    rule_code : str
+        The code of the rule that was violated.
+    rule_severity : SeverityLevel
+        The severity level of the rule violation.
+    screen : Screen | Path
+        The screen where the violation was found.
+    widget : optional, Widget
+        The widget where the violation was found.
+    property : optional, str
+        The property name where the violation was found.
+    property_element : optional, str
+        The property element where the violation was found.
+    details : str, default = ""
+        Additional details about the violation.
     """
 
     rule_name: str
@@ -53,7 +62,7 @@ class RuleViolation:
 
     def __str__(self) -> str:
         screen_path = (
-            self.screen.f_name if isinstance(self.screen, Screen) else self.screen
+            self.screen.bob_file if isinstance(self.screen, Screen) else self.screen
         )
         location = f"Screen: {screen_path}"
         if self.widget:
@@ -110,12 +119,17 @@ class LintRule(RuleViolationFactory, ABC):
     @classmethod
     @abstractmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
-        """Check the given  element for issue covered by specific rule.
+        """Check the given screen for issues covered by this rule.
 
-        Args:
-            element (PhoebusElementT): The phoebus element to be checked.
-        Returns:
-            list[RuleViolation]: List of issues found, or None.
+        Parameters
+        ----------
+        screen : Screen
+            The reference to the phoebusgen screen object being checked for the rule.
+
+        Returns
+        -------
+        list[RuleViolation]
+            List of issues found, or empty list if none found.
         """
         ...
 
@@ -349,7 +363,7 @@ class PhoebusLinter:
             rule
             for rule in (LintRule.__subclasses__() + RecursiveLintRule.__subclasses__())
             if not inspect.isabstract(rule)
-            and rule.rule_code not in disable_rules
+            and rule.rule_code not in (disabled_rule_codes or [])
         }
 
         self._fail_severity = fail_severity
@@ -359,7 +373,7 @@ class PhoebusLinter:
     def from_yaml(cls, config_path: Path | str) -> "PhoebusLinter":
         with open(config_path, "r") as f:
             data = yaml.safe_load(f)
-        disable_rules = data.get("disable_rules", [])
+        disabled_rule_codes = data.get("disabled_rule_codes", [])
         fail_severity = SeverityLevel[data.get("fail_severity", "warning").upper()]
         enable_fixes = data.get("enable_fixes", False)
         return cls(fail_severity=fail_severity, disabled_rule_codes=disabled_rule_codes, enable_fixes=enable_fixes)
@@ -369,19 +383,31 @@ class PhoebusLinter:
     ) -> dict[Path, list[RuleViolation]]:
         """Lint a single Phoebus screen.
 
-        Args:
-            screen (Screen): The Phoebus screen to lint.
-            visited (dict[Path, list[RuleViolation]]): Map of paths to violations
-        Returns:
-            dict[Path, list[RuleViolation]]: Map of paths to violations.
-        Raises:
-            ValueError: If the screen is not associated with a file path.
+        Parameters
+        ----------
+        screen : Screen
+            The Phoebus screen to lint.
+        visited : dict[Path, list[RuleViolation]], optional
+            A dictionary mapping file paths to lists of rule violations.
+            Used to track which screens have already been linted and their violations to avoid redundant work.
+            If None, a new empty dictionary will be created and used.
+        
+        Returns
+        -------
+        dict[Path, list[RuleViolation]]
+            A dictionary mapping file paths to lists of rule violations found in those screens.
+
+        Raises
+        ------
+        ValueError
+            If the screen is not associated with a file path (i.e., it cannot be linked to a .bob file).
         """
+
+        if screen.bob_file is None:
+            raise ValueError("Screen must be associated with a file path to be linted.")
 
         if visited is None:
             visited = {}
-        if screen.bob_file is None:
-            raise ValueError("Screen must be associated with a file path to be linted.")
 
         file_path = Path(screen.bob_file)
 
@@ -417,13 +443,24 @@ class PhoebusLinter:
     ) -> dict[Path, list[RuleViolation]]:
         """Lint a single .bob file.
 
-        Args:
-            file_path (Path): The path to the .bob file to lint.
-            visited (dict[Path, list[RuleViolation]]): Map of paths to violations
-        Returns:
-            dict[Path, list[RuleViolation]]: Map of paths to violations.
-        Raises:
-            ValueError: If the file does not exist or is not a .bob file.
+        Parameters
+        ----------
+        file_path : Path
+            The path to the .bob file to lint.
+        visited : dict[Path, list[RuleViolation]], optional
+            A dictionary mapping file paths to lists of rule violations.
+            Used to track which files have already been linted and their violations to avoid redundant work.
+            If None, a new empty dictionary will be created and used.
+
+        Returns
+        -------
+        dict[Path, list[RuleViolation]]
+            A dictionary mapping file paths to lists of rule violations found in those files.
+        
+        Raises
+        ------
+        ValueError
+            If the file does not exist or is not a .bob file.
         """
 
         if visited is None:
@@ -469,8 +506,10 @@ class PhoebusLinter:
     def display_linting_report(self, results: dict[Path, list[RuleViolation]]) -> None:
         """Display a linting report based on the given linting results.
 
-        Args:
-            results (dict[Path, list[RuleViolation]]): Map of paths to violations.
+        Parameters
+        ----------
+        results : dict[Path, list[RuleViolation]]
+            Map of paths to violations.
         """
 
         n_screens = len(results)
@@ -518,12 +557,19 @@ class PhoebusLinter:
         if total_issues > 0:
             print(f"Found {total_issues} total issues.")
 
+
     def did_linting_pass(self, results: dict[Path, list[RuleViolation]]) -> bool:
         """Determine if the linting results pass based on the configured fail severity.
-        Args:
-            results (dict[Path, list[RuleViolation]]): Map of paths to violations.
-        Returns:
-            bool: True if linting passed, False otherwise.
+
+        Parameters
+        ----------
+        results : dict[Path, list[RuleViolation]]
+            Map of paths to violations.
+
+        Returns
+        -------
+        bool
+            True if linting passed, False otherwise.
         """
 
         return all(
