@@ -1,8 +1,14 @@
 import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+<<<<<<< Updated upstream
 from enum import IntEnum
+=======
+from enum import Enum
+from itertools import chain
+>>>>>>> Stashed changes
 from pathlib import Path
+import graphlib
 
 import yaml
 from phoebusgen.v4 import Screen
@@ -107,15 +113,28 @@ class LintRule(RuleViolationFactory, ABC):
 
     @classmethod
     @abstractmethod
-    def check(cls, screen: Screen) -> list[RuleViolation] | None:
+    def check(cls, screen: Screen) -> list[RuleViolation]:
         """Check the given  element for issue covered by specific rule.
 
         Args:
             element (PhoebusElementT): The phoebus element to be checked.
         Returns:
-            list[RuleViolation] | None: List of issues found, or None.
+            list[RuleViolation]: List of issues found, or None.
         """
         ...
+
+# class FixableLintRule(LintRule, ABC):
+#     """ABC for linting rules that can also provide fixes for the issues they find."""
+
+#     @classmethod
+#     @abstractmethod
+#     def fix(cls, screen: Screen) -> None:
+#         """Apply a fix for the given rule violation.
+
+#         Args:
+#             screen (Screen): The screen to be fixed.
+#         """
+#         ...
 
 
 class RecursiveLintRule(RuleViolationFactory, ABC):
@@ -125,23 +144,21 @@ class RecursiveLintRule(RuleViolationFactory, ABC):
     @abstractmethod
     def check(
         cls,
-        linter: "PhoebusLinter",
         screen: Screen,
-        visited: dict[Path, list[RuleViolation]] | None,
-    ) -> list[RuleViolation] | None:
+        visited: set[Path] = set(),
+    ) -> dict[Path, list[RuleViolation]]:
         """Recursively check the given screen for issues covered by this rule.
 
         Args:
-            linter (PhoebusLinter): The linter instance. Recursively lints screens.
             screen (Screen): The screen to be checked.
-            visited (dict[Path, list[RuleViolation]] | None):
-                Map of paths to violations.
+            visited (set[Path]): Set of visited paths to avoid infinite recursion.
         Returns:
-            dict[Path, list[RuleViolation]] | None: Map of paths to violations.
+            dict[Path, list[RuleViolation]]: Map of paths to violations found.
         """
         ...
 
 
+<<<<<<< Updated upstream
 class FixableLintRule(LintRule, ABC):
     """Abstract base class for linting rules that can be automatically fixed."""
 
@@ -176,6 +193,167 @@ class FixableRecursiveLintRule(RecursiveLintRule, ABC):
             bool: True if a fix was applied, False otherwise.
         """
         ...
+=======
+@dataclass(frozen=True)
+class NavigationStep:
+    from_screen: Path
+    to_screen: Path
+    macros: tuple[tuple[str, str], ...]  # Macros to apply when navigating, as sorted tuple of key-value pairs
+
+    def __eq__(self, other):
+        if not isinstance(other, NavigationStep):
+            return NotImplemented
+        return (
+            self.from_screen == other.from_screen
+            and self.to_screen == other.to_screen
+        )
+    
+    @property
+    def macros_dict(self) -> dict[str, str]:
+        """Convert macros tuple back to a dictionary."""
+        return dict(self.macros)
+
+
+class ScreenNavigationDAG:
+    """Class representing the navigation structure of screens as a directed acyclic graph (DAG).
+    
+    Each node represents a screen, and edges represent navigation actions (e.g., opening another screen)
+    with optional macros passed during navigation.
+    """
+
+    def __init__(self):
+        self.graph: dict[Path, set[NavigationStep]] = {}
+
+    def add_navigation(self, from_screen: Path, to_screen: Path, macros: dict[str, str] | None = None) -> None:
+        """Add a navigation link between two screens in the graph.
+
+        Args:
+            from_screen (Path): The screen where the navigation starts.
+            to_screen (Path): The screen where the navigation ends.
+            macros (dict[str, str] | None): Macros passed when navigating to the destination screen.
+        """
+        if from_screen not in self.graph:
+            self.graph[from_screen] = set()
+        if macros is None:
+            macros = {}
+        # Convert macros dict to sorted tuple of tuples for hashability
+        macros_tuple = tuple(sorted(macros.items()))
+        self.graph[from_screen].add(NavigationStep(from_screen=from_screen, to_screen=to_screen, macros=macros_tuple))
+
+    def get_all_nodes(self) -> set[Path]:
+        """Get all unique screens (nodes) in the graph.
+
+        Returns:
+            set[Path]: All screens that appear in the navigation graph.
+        """
+        all_nodes = set(self.graph.keys())
+        for navigation_steps in self.graph.values():
+            for step in navigation_steps:
+                all_nodes.add(step.to_screen)
+        return all_nodes
+
+    def get_destination_nodes(self) -> set[Path]:
+        """Get all screens that are opened by at least one other screen.
+
+        Returns:
+            set[Path]: All screens that appear as destinations in navigation actions.
+        """
+        destination_nodes = set()
+        for navigation_steps in self.graph.values():
+            for step in navigation_steps:
+                destination_nodes.add(step.to_screen)
+        return destination_nodes
+
+    def get_root_nodes(self) -> set[Path]:
+        """Get root nodes - screens that open other screens but are not opened by anything.
+
+        Root nodes are entry points in the navigation graph. They have outgoing edges 
+        but no incoming edges.
+
+        Returns:
+            set[Path]: Set of screens that are root nodes in the navigation graph.
+        """
+        destination_nodes = self.get_destination_nodes()
+        root_nodes = set()
+        for from_screen in self.graph.keys():
+            if from_screen not in destination_nodes:
+                root_nodes.add(from_screen)
+        return root_nodes
+
+    def get_leaf_nodes(self) -> set[Path]:
+        """Get leaf nodes - screens that don't open any other screens.
+
+        Leaf nodes are terminal screens in the navigation graph. They have incoming 
+        edges but no outgoing edges.
+
+        Returns:
+            set[Path]: Set of screens that are leaf nodes in the navigation graph.
+        """
+        all_nodes = self.get_all_nodes()
+        leaf_nodes = set()
+        for node in all_nodes:
+            if node not in self.graph or len(self.graph[node]) == 0:
+                leaf_nodes.add(node)
+        return leaf_nodes
+
+
+    @classmethod
+    def from_screen(cls, screen: Screen) -> "ScreenNavigationDAG":
+        """Construct a ScreenNavigationDAG from a given screen by analyzing its linked screens.
+
+        Args:
+            screen (Screen): The screen to analyze for navigation links.
+        Returns:
+            ScreenNavigationDAG: The constructed navigation graph for the given screen.
+        """
+        dag = cls()
+        visited: set[Path] = set()
+
+        def dfs(current_screen: Screen):
+            if current_screen.bob_file is None:
+                return
+            current_path = Path(current_screen.bob_file)
+            visited.add(current_path)
+
+            for to_screen_path, macros in current_screen.get_linked_screens().items():
+                dag.add_navigation(current_path, to_screen_path, macros)
+                if to_screen_path not in visited:
+                    try:
+                        to_screen = Screen(f_name=str(to_screen_path))
+                        dfs(to_screen)
+                    except Exception as e:
+                        # If we can't load the linked screen, we can choose to log this or ignore it
+                        print(f"Warning: Could not load linked screen at {to_screen_path}: {e}")
+
+        dfs(screen)
+        return dag
+
+
+    @classmethod
+    def from_directory(cls, dir_path: Path) -> "ScreenNavigationDAG":
+        """Construct a ScreenNavigationDAG from all .bob files in the given directory.
+
+        Args:
+            dir_path (Path): The directory to scan for .bob files and analyze for navigation links.
+        Returns:
+            ScreenNavigationDAG: The constructed navigation graph for all screens in the directory.
+        """
+        dag = cls()
+        # Search both the directory itself and all subdirectories
+        for bob_file in dir_path.glob("**/*.bob"):
+            print(bob_file)
+            try:
+                screen = Screen(f_name=str(bob_file))
+                screen_dag = cls.from_screen(screen)
+                print(screen_dag.graph)
+                exit()
+                for from_screen, navigation_steps in screen_dag.graph.items():
+                    for step in navigation_steps:
+                        dag.add_navigation(from_screen, step.to_screen, step.macros_dict)
+            except Exception as e:
+                print(f"Warning: Could not load screen at {bob_file}: {e}")
+        return dag
+>>>>>>> Stashed changes
 
 
 class PhoebusLinter:
@@ -184,7 +362,12 @@ class PhoebusLinter:
     def __init__(
         self,
         fail_severity: SeverityLevel = SeverityLevel.WARNING,
+<<<<<<< Updated upstream
         disable_rules: list[str] = [],
+=======
+        disabled_rule_codes: list[str] | None = None,
+        enable_fixes: bool = False,
+>>>>>>> Stashed changes
     ):
         self._enabled_rules = {
             rule
@@ -194,6 +377,7 @@ class PhoebusLinter:
         }
 
         self._fail_severity = fail_severity
+        self._enable_auto_fixes = enable_fixes
 
     @classmethod
     def from_yaml(cls, config_path: Path | str) -> "PhoebusLinter":
@@ -201,7 +385,12 @@ class PhoebusLinter:
             data = yaml.safe_load(f)
         disable_rules = data.get("disable_rules", [])
         fail_severity = SeverityLevel[data.get("fail_severity", "warning").upper()]
+<<<<<<< Updated upstream
         return cls(fail_severity=fail_severity, disable_rules=disable_rules)
+=======
+        enable_fixes = data.get("enable_fixes", False)
+        return cls(fail_severity=fail_severity, disabled_rule_codes=disabled_rule_codes, enable_fixes=enable_fixes)
+>>>>>>> Stashed changes
 
     def lint_screen(
         self, screen: Screen, visited: dict[Path, list[RuleViolation]] | None = None
@@ -231,12 +420,11 @@ class PhoebusLinter:
         for rule_cls in self._enabled_rules:
             try:
                 if issubclass(rule_cls, RecursiveLintRule):
-                    violations_for_rule = rule_cls.check(self, screen, visited)
+                    violations_by_path = rule_cls.check(screen)
+                    for visited_file_path in violations_by_path:
+                        visited[visited_file_path].extend(violations_by_path.get(visited_file_path, []))
                 else:
-                    violations_for_rule = rule_cls.check(screen)
-                visited[file_path].extend(
-                    violations_for_rule if violations_for_rule is not None else []
-                )
+                    visited[file_path].extend(rule_cls.check(screen))
             except Exception as e:
                 visited[file_path].append(
                     RuleViolation(
@@ -296,8 +484,12 @@ class PhoebusLinter:
             dict[Path, list[RuleViolation]]: Map of paths to violations.
         """
 
+
+        screen_nav_dag = ScreenNavigationDAG.from_directory(dir_path)
+        print(screen_nav_dag.get_root_nodes())
+
         visited: dict[Path, list[RuleViolation]] = {}
-        for file_path in dir_path.glob("**/*.bob"):
+        for file_path in chain(dir_path.glob("*.bob"), dir_path.glob("**/*.bob")):
             self.lint_file(file_path, visited=visited)
 
         return visited

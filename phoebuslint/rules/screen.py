@@ -13,14 +13,15 @@ class MissingDisplayTag(LintRule):
     rule_severity = SeverityLevel.CRITICAL
 
     @classmethod
-    def check(cls, screen: Screen) -> list[RuleViolation] | None:
+    def check(cls, screen: Screen) -> list[RuleViolation]:
         if screen.bob_file is None:
-            return None
+            raise ValueError("Screen must have a bob_file attribute!")
 
         tree = ET.parse(screen.bob_file)
         root = tree.getroot()
         if root.tag != "display":
             return [cls.rule_violation_factory(screen)]
+        return []
 
 
 class TopLevelTagNotDisplay(LintRule):
@@ -31,13 +32,14 @@ class TopLevelTagNotDisplay(LintRule):
     rule_severity = SeverityLevel.CRITICAL
 
     @classmethod
-    def check(cls, screen: Screen) -> list[RuleViolation] | None:
+    def check(cls, screen: Screen) -> list[RuleViolation]:
         if screen.root.tag != "display":
             return [
                 cls.rule_violation_factory(
                     screen, details=f"{cls.description} Tag: {screen.root.tag}"
                 )
             ]
+        return []
 
 
 class ExtraTagsInDisplay(LintRule):
@@ -47,7 +49,7 @@ class ExtraTagsInDisplay(LintRule):
     description = "Unexpected tag found in <display>."
 
     @classmethod
-    def check(cls, screen: Screen) -> list[RuleViolation] | None:
+    def check(cls, screen: Screen) -> list[RuleViolation]:
         violations = []
         for display_child in screen.root:
             if display_child.tag not in ["widget", *screen.get_property_names()]:
@@ -56,7 +58,7 @@ class ExtraTagsInDisplay(LintRule):
                         screen, details=f"{cls.description} Tag: {display_child.tag}"
                     )
                 )
-        return violations if violations else None
+        return violations
 
 
 class TitleEmptyOrNotSet(LintRule):
@@ -66,9 +68,10 @@ class TitleEmptyOrNotSet(LintRule):
     description = "Screen has an empty or not set title."
 
     @classmethod
-    def check(cls, screen: Screen) -> list[RuleViolation] | None:
+    def check(cls, screen: Screen) -> list[RuleViolation]:
         if screen.name is None or screen.name.strip() == "":
             return [cls.rule_violation_factory(screen)]
+        return []
 
 
 class DefaultTitleSet(LintRule):
@@ -78,10 +81,11 @@ class DefaultTitleSet(LintRule):
     description = "Screen has the default title set."
 
     @classmethod
-    def check(cls, screen: Screen) -> list[RuleViolation] | None:
+    def check(cls, screen: Screen) -> list[RuleViolation]:
         # Phoebusgen will set the screen name to "Display" if no name is found
         if screen.name == "Display":
             return [cls.rule_violation_factory(screen)]
+        return []
 
 
 class EmptyScreen(LintRule):
@@ -91,9 +95,10 @@ class EmptyScreen(LintRule):
     description = "Screen is empty (has no widgets)."
 
     @classmethod
-    def check(cls, screen: Screen) -> list[RuleViolation] | None:
+    def check(cls, screen: Screen) -> list[RuleViolation]:
         if len(screen.get_widgets()) == 0:
             return [cls.rule_violation_factory(screen=screen)]
+        return []
 
 
 class ScreenHeightOrWidthZeroOrNegative(LintRule):
@@ -103,6 +108,7 @@ class ScreenHeightOrWidthZeroOrNegative(LintRule):
     description = "Screen has zero or negative height or width."
 
     @classmethod
-    def check(cls, screen: Screen) -> list[RuleViolation] | None:
+    def check(cls, screen: Screen) -> list[RuleViolation]:
         if screen.height <= 0 or screen.width <= 0:
             return [cls.rule_violation_factory(screen=screen)]
+        return []

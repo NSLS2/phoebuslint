@@ -1,7 +1,13 @@
 from phoebusgen.v4 import Screen
+<<<<<<< Updated upstream
 from phoebusgen.v4.widgets import ActionButton, Label, TextUpdate
+=======
+from phoebusgen.v4.properties import HasActionsRulesAndScripts, HasPVName, OpenDisplayAction, OpenFileAction, OpenWebpageAction, HasItemsFromPV
+from phoebusgen.v4.widgets import Widget, EmbeddedDisplay, ActionButton
+from pathlib import Path
+>>>>>>> Stashed changes
 
-from ..linter import LintRule, RuleViolation
+from ..linter import LintRule, RuleViolation, SeverityLevel
 
 
 class WidgetHeightOrWidthZeroOrNegative(LintRule):
@@ -11,14 +17,14 @@ class WidgetHeightOrWidthZeroOrNegative(LintRule):
     description = "Widget has zero or negative height or width."
 
     @classmethod
-    def check(cls, screen: Screen) -> list[RuleViolation] | None:
+    def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
         for widget in screen.get_widgets():
             if widget.width <= 0 or widget.height <= 0:
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
-        return rule_violations if len(rule_violations) > 0 else None
+        return rule_violations
 
 
 class WidgetOutOfBounds(LintRule):
@@ -28,7 +34,7 @@ class WidgetOutOfBounds(LintRule):
     description = "Widget is out of screen bounds"
 
     @classmethod
-    def check(cls, screen: Screen) -> list[RuleViolation] | None:
+    def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
         for widget in screen.get_widgets():
             if (
@@ -40,6 +46,7 @@ class WidgetOutOfBounds(LintRule):
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
+<<<<<<< Updated upstream
         return rule_violations if len(rule_violations) > 0 else None
 
 
@@ -114,3 +121,206 @@ class TextUpdateWithNoDefinedPV(LintRule):
                     cls.rule_violation_factory(screen=screen, widget=text_update)
                 )
         return rule_violations if len(rule_violations) > 0 else None
+=======
+        return rule_violations
+
+
+class EmbeddedDisplayNoFilePathSet(LintRule):
+    """Rule that checks if an EmbeddedDisplay widget has no file path set."""
+
+    rule_code = "W103"
+    rule_severity = SeverityLevel.ERROR
+    description = "EmbeddedDisplay widget has no file path set."
+
+    @classmethod
+    def check(cls, screen: Screen) -> list[RuleViolation]:
+        rule_violations = []
+        for widget in screen.get_widgets_by_type(EmbeddedDisplay):
+            if not widget.file:
+                rule_violations.append(
+                    cls.rule_violation_factory(screen=screen, widget=widget)
+                )
+        return rule_violations
+
+
+class EmbeddedDisplayPathDoesNotExist(LintRule):
+    """Rule that checks if an EmbeddedDisplay widget has a path that does not exist."""
+
+    rule_code = "W104"
+    rule_severity = SeverityLevel.ERROR
+    description = "EmbeddedDisplay widget has a path that does not exist."
+
+    @classmethod
+    def check(cls, screen: Screen) -> list[RuleViolation]:
+        rule_violations = []
+        for widget in screen.get_widgets_by_type(EmbeddedDisplay):
+            path = Path(widget.file)
+            if not path.is_absolute() and screen.bob_file:
+                path = Path(screen.bob_file).parent / path
+            if not path.exists() or not path.is_file():
+                rule_violations.append(
+                    cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Path: {widget.file}")
+                )
+
+        return rule_violations
+    
+
+class EmbeddedDisplayPathIsOpiFile(LintRule):
+    """Rule that checks if an EmbeddedDisplay widget has a path that points to an OPI file."""
+
+    rule_code = "W105"
+    rule_severity = SeverityLevel.WARNING # TODO: Make this ERROR. We want to get out of the habit of mixing bob and opi
+    description = "EmbeddedDisplay widget has a path that points to an OPI file, not a bob file."
+
+    @classmethod
+    def check(cls, screen: Screen) -> list[RuleViolation]:
+        rule_violations = []
+        for widget in screen.get_widgets_by_type(EmbeddedDisplay):
+            path = Path(widget.file)
+            if not path.is_absolute() and screen.bob_file:
+                path = Path(screen.bob_file).parent / path
+            if path.suffix.lower() == ".opi":
+                rule_violations.append(
+                    cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Path: {widget.file}")
+                )
+
+        return rule_violations
+
+class OpenDisplayActionPathNotSet(LintRule):
+    """Rule that checks if an OpenDisplayAction has no file path set."""
+
+    rule_code = "W106"
+    rule_severity = SeverityLevel.ERROR
+    description = "OpenDisplayAction has no file path set."
+
+    @classmethod
+    def check(cls, screen: Screen) -> list[RuleViolation]:
+        rule_violations = []
+        for widget in screen.get_widgets_by_property_class(HasActionsRulesAndScripts):
+            if not isinstance(widget, Widget):
+                continue
+            for action in widget.actions:
+                if isinstance(action, OpenDisplayAction) and not action.file:
+                    rule_violations.append(
+                        cls.rule_violation_factory(screen=screen, widget=widget)
+                    )
+        return rule_violations
+
+class OpenDisplayActionPathDoesNotExist(LintRule):
+    """Rule that checks if an OpenDisplayAction has a path that does not exist."""
+
+    rule_code = "W107"
+    rule_severity = SeverityLevel.ERROR
+    description = "OpenDisplayAction has a path that does not exist."
+
+    @classmethod
+    def check(cls, screen: Screen) -> list[RuleViolation]:
+        rule_violations = []
+        for widget in screen.get_widgets_by_property_class(HasActionsRulesAndScripts):
+            if not isinstance(widget, Widget):
+                continue
+            for action in widget.actions:
+                if isinstance(action, OpenDisplayAction):
+                    path = Path(action.file)
+                    if not path.is_absolute() and screen.bob_file:
+                        path = Path(screen.bob_file).parent / path
+                    if not path.exists() or not path.is_file():
+                        rule_violations.append(
+                            cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Path: {action.file}")
+                        )
+
+        return rule_violations
+
+class OpenDisplayActionPathIsOpiFile(LintRule):
+    """Rule that checks if an OpenDisplayAction has a path that points to an OPI file."""
+
+    rule_code = "W108"
+    rule_severity = SeverityLevel.ERROR
+    description = "OpenDisplayAction has a path that points to an OPI file, not a bob file."
+
+    @classmethod
+    def check(cls, screen: Screen) -> list[RuleViolation]:
+        rule_violations = []
+        for widget in screen.get_widgets_by_property_class(HasActionsRulesAndScripts):
+            if not isinstance(widget, Widget):
+                continue
+            for action in widget.actions:
+                if isinstance(action, OpenDisplayAction):
+                    path = Path(action.file)
+                    if not path.is_absolute() and screen.bob_file:
+                        path = Path(screen.bob_file).parent / path
+                    if path.suffix.lower() == ".opi":
+                        rule_violations.append(
+                            cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Path: {action.file}")
+                        )
+
+        return rule_violations
+
+
+class OpenFileActionPathDoesNotExist(LintRule):
+    """Rule that checks if an OpenFileAction has a path that does not exist."""
+
+    rule_code = "W109"
+    description = "OpenFileAction has a path that does not exist."
+
+    @classmethod
+    def check(cls, screen: Screen) -> list[RuleViolation]:
+        rule_violations = []
+        for widget in screen.get_widgets_by_property_class(HasActionsRulesAndScripts):
+            if not isinstance(widget, Widget):
+                continue
+            for action in widget.actions:
+                if isinstance(action, OpenFileAction):
+                    path = Path(action.file)
+                    if not path.is_absolute() and screen.bob_file:
+                        path = Path(screen.bob_file).parent / path
+                    if not path.exists() or not path.is_file():
+                        rule_violations.append(
+                            cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Path: {action.file}")
+                        )
+
+        return rule_violations
+
+
+class OpenWebpageActionInvalidUrl(LintRule):
+    """Rule that checks if an OpenWebpageAction has an invalid URL."""
+
+    rule_code = "W110"
+    description = "OpenWebpageAction has an invalid URL."
+
+    @classmethod
+    def check(cls, screen: Screen) -> list[RuleViolation]:
+        rule_violations = []
+        for widget in screen.get_widgets_by_property_class(HasActionsRulesAndScripts):
+            if not isinstance(widget, Widget):
+                continue
+            for action in widget.actions:
+                if isinstance(action, OpenWebpageAction):
+                    if not action.url.startswith(("http://", "https://")):
+                        rule_violations.append(
+                            cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} URL: {action.url}")
+                        )
+
+        return rule_violations
+
+
+class PVNamePropertyNotSet(LintRule):
+    """Rule that checks if a widget with a PVName property has it set."""
+
+    rule_code = "W111"
+    rule_severity = SeverityLevel.ERROR
+    description = "Widget with PVName property has it not set."
+
+    @classmethod
+    def check(cls, screen: Screen) -> list[RuleViolation]:
+        rule_violations = []
+        for widget in screen.get_widgets_by_property_class(HasPVName):
+            if not isinstance(widget, Widget) or (isinstance(widget, HasItemsFromPV) and not widget.items_from_pv) or isinstance(widget, ActionButton):
+                continue
+            if not widget.pv_name or widget.pv_name.strip() == "":
+                rule_violations.append(
+                    cls.rule_violation_factory(screen=screen, widget=widget)
+                )
+
+        return rule_violations
+>>>>>>> Stashed changes
