@@ -19,9 +19,13 @@ classifiers=[
     'Development Status :: 3 - Pre-Alpha',
     'Topic :: Software Development :: Linter'
 ]
+dependencies = [
+    "phoebusgen @ git+https://github.com/jwlodek/phoebusgen@v4"
+]
 
 [project.scripts]
 phoebuslint = "phoebuslint.__main__:main"
+
 
 [dependency-groups]
 dev = [

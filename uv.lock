@@ -449,8 +449,16 @@ wheels = [
 ]
 
 [[package]]
+name = "phoebusgen"
+version = "0.1.dev343+g52008d750"
+source = { git = "https://github.com/jwlodek/phoebusgen?rev=v4#52008d75061a0576394e6e156838da5b710745ec" }
+
+[[package]]
 name = "phoebuslint"
 source = { editable = "." }
+dependencies = [
+    { name = "phoebusgen" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -469,6 +477,7 @@ docs = [
 ]
 
 [package.metadata]
+requires-dist = [{ name = "phoebusgen", git = "https://github.com/jwlodek/phoebusgen?rev=v4" }]
 
 [package.metadata.requires-dev]
 dev = [

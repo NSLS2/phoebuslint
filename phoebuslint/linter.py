@@ -1,12 +1,8 @@
 import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-<<<<<<< Updated upstream
 from enum import IntEnum
-=======
-from enum import Enum
 from itertools import chain
->>>>>>> Stashed changes
 from pathlib import Path
 import graphlib
 
@@ -57,7 +53,7 @@ class RuleViolation:
 
     def __str__(self) -> str:
         screen_path = (
-            self.screen.bob_file if isinstance(self.screen, Screen) else self.screen
+            self.screen.f_name if isinstance(self.screen, Screen) else self.screen
         )
         location = f"Screen: {screen_path}"
         if self.widget:
@@ -122,19 +118,6 @@ class LintRule(RuleViolationFactory, ABC):
             list[RuleViolation]: List of issues found, or None.
         """
         ...
-
-# class FixableLintRule(LintRule, ABC):
-#     """ABC for linting rules that can also provide fixes for the issues they find."""
-
-#     @classmethod
-#     @abstractmethod
-#     def fix(cls, screen: Screen) -> None:
-#         """Apply a fix for the given rule violation.
-
-#         Args:
-#             screen (Screen): The screen to be fixed.
-#         """
-#         ...
 
 
 class RecursiveLintRule(RuleViolationFactory, ABC):
