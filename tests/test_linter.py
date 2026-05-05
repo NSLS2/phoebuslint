@@ -1,8 +1,8 @@
 from pathlib import Path
 
+import pytest
 from phoebusgen.v4 import Screen
 from phoebusgen.v4.widgets import Label
-import pytest
 from phoebuslint import (
     PhoebusLinter,
     RuleViolation,
@@ -20,7 +20,7 @@ def test_rule_violation():
         widget=None,
         property=None,
         property_element=None,
-        details="Test violation"
+        details="Test violation",
     )
     assert violation.rule_name == "TestRule"
     assert violation.rule_code == "T001"
@@ -29,6 +29,7 @@ def test_rule_violation():
     assert violation.details == "Test violation"
 
     assert str(violation) == "[T001] TestRule: Test violation (Screen: test_screen.bob)"
+
 
 def test_all_rule_codes_unique(all_rule_classes):
     """Test to ensure all LintRule subclasses have unique rule codes."""
@@ -54,13 +55,20 @@ def test_rule_violation_factory(tmp_path):
     )
     assert violation.rule_name == "TestRule"  # Assuming the factory sets this
     assert violation.rule_code == "T001"  # Assuming the factory sets this
-    assert violation.rule_severity == SeverityLevel.WARNING  # Assuming the factory sets this
+    assert (
+        violation.rule_severity == SeverityLevel.WARNING
+    )  # Assuming the factory sets this
     assert violation.screen == screen
     assert violation.widget is None
     assert violation.property is None
     assert violation.property_element is None
-    assert violation.details == "Example rule for testing."  # Assuming the factory sets this
-    assert str(violation) == f"[T001] TestRule: Example rule for testing. (Screen: {screen_path})"
+    assert (
+        violation.details == "Example rule for testing."
+    )  # Assuming the factory sets this
+    assert (
+        str(violation)
+        == f"[T001] TestRule: Example rule for testing. (Screen: {screen_path})"
+    )
 
     # Now add a widget and make a more typical violation
     label = Label("test_label", "Test Label", 0, 0, 10, 10)
@@ -70,17 +78,22 @@ def test_rule_violation_factory(tmp_path):
         widget=label,
         property="text",
         property_element="text_elem",
-        details="Test violation details"
+        details="Test violation details",
     )
     assert violation.rule_name == "TestRule"  # Assuming the factory sets this
     assert violation.rule_code == "T001"  # Assuming the factory sets this
-    assert violation.rule_severity == SeverityLevel.WARNING  # Assuming the factory sets this
+    assert (
+        violation.rule_severity == SeverityLevel.WARNING
+    )  # Assuming the factory sets this
     assert violation.screen == screen
     assert violation.widget == label
     assert violation.property == "text"
     assert violation.property_element == "text_elem"
     assert violation.details == "Test violation details"
-    assert str(violation) == f"[T001] TestRule: Test violation details (Screen: {screen_path}, Widget: test_label, Property: text, Element: text_elem)"  # noqa: E501
+    assert (
+        str(violation)
+        == f"[T001] TestRule: Test violation details (Screen: {screen_path}, Widget: test_label, Property: text, Element: text_elem)"  # noqa: E501
+    )
 
 
 def test_rule_violation_factory_rule_classes(all_rule_classes):
@@ -120,7 +133,9 @@ def test_linter_configuration_from_yaml(tmp_path, all_rule_classes):
     linter = PhoebusLinter.from_yaml(yaml_file)
     assert linter._fail_severity == SeverityLevel.ERROR
     assert len(linter._enabled_rules) == len(all_rule_classes) - 2
-    assert all(rule_cls.rule_code not in ["S102", "S103"] for rule_cls in linter._enabled_rules)
+    assert all(
+        rule_cls.rule_code not in ["S102", "S103"] for rule_cls in linter._enabled_rules
+    )
 
 
 @pytest.mark.parametrize(
@@ -141,9 +156,11 @@ def test_linter_configuration_from_yaml(tmp_path, all_rule_classes):
         (0, 1, 0, SeverityLevel.CRITICAL, True),
         (0, 0, 1, SeverityLevel.CRITICAL, False),
         (1, 1, 1, SeverityLevel.CRITICAL, False),
-    ]
+    ],
 )
-def test_did_linting_pass(tmp_path, num_warnings, num_errors, num_criticals, fail_sevr, expected):
+def test_did_linting_pass(
+    tmp_path, num_warnings, num_errors, num_criticals, fail_sevr, expected
+):
     linter = PhoebusLinter(fail_severity=fail_sevr)
     all_violations = []
 
@@ -153,14 +170,15 @@ def test_did_linting_pass(tmp_path, num_warnings, num_errors, num_criticals, fai
             rule_code=code,
             rule_severity=severity,
             screen=Path("test_screen.bob"),
-            details=f"Test {severity.name.lower()} violation"
+            details=f"Test {severity.name.lower()} violation",
         )
+
     for i in range(num_warnings):
-        all_violations.append(_make_violation(SeverityLevel.WARNING, f"W{i+1:03}"))
+        all_violations.append(_make_violation(SeverityLevel.WARNING, f"W{i + 1:03}"))
     for i in range(num_errors):
-        all_violations.append(_make_violation(SeverityLevel.ERROR, f"E{i+1:03}"))
+        all_violations.append(_make_violation(SeverityLevel.ERROR, f"E{i + 1:03}"))
     for i in range(num_criticals):
-        all_violations.append(_make_violation(SeverityLevel.CRITICAL, f"C{i+1:03}"))
+        all_violations.append(_make_violation(SeverityLevel.CRITICAL, f"C{i + 1:03}"))
 
     assert linter.did_linting_pass({tmp_path: all_violations}) == expected
 
@@ -173,22 +191,28 @@ def test_display_linting_report(capsys):
             rule_code="T001",
             rule_severity=SeverityLevel.WARNING,
             screen=Path("test_screen.bob"),
-            details="Test warning violation"
+            details="Test warning violation",
         ),
         RuleViolation(
             rule_name="TestRule2",
             rule_code="T002",
             rule_severity=SeverityLevel.ERROR,
             screen=Path("test_screen.bob"),
-            details="Test error violation"
-        )
+            details="Test error violation",
+        ),
     ]
     linter.display_linting_report({Path("test_screen.bob"): violations})
     captured = capsys.readouterr()
     assert "PhoebusLint scanned 1 screens,  1 with violations." in captured.out
     assert "# PhoebusLint Rule Violation Report" in captured.out
-    assert "[T001] TestRule1: Test warning violation (Screen: test_screen.bob)" in captured.out
-    assert "[T002] TestRule2: Test error violation (Screen: test_screen.bob)" in captured.out
+    assert (
+        "[T001] TestRule1: Test warning violation (Screen: test_screen.bob)"
+        in captured.out
+    )
+    assert (
+        "[T002] TestRule2: Test error violation (Screen: test_screen.bob)"
+        in captured.out
+    )
     assert "Total Warnings: 1" in captured.out
     assert "Total Errors: 1" in captured.out
     assert "Found 2 total issues." in captured.out

@@ -1,13 +1,11 @@
 from pathlib import Path
 
 from phoebusgen.v4 import Screen
+from phoebusgen.v4.properties import OpenDisplayAction, OpenFileAction
 from phoebusgen.v4.properties.behavior import (
     HasActionsRulesAndScripts,
 )
 from phoebusgen.v4.properties.widget import HasFile
-
-from phoebusgen.v4.properties import OpenDisplayAction, OpenFileAction
-
 
 from ..linter import LintRule, RuleViolation
 

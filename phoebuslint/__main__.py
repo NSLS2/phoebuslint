@@ -31,7 +31,11 @@ def main():
     parser.add_argument(
         "-v", "--version", action="version", version=f"PhoebusLint {__version__}"
     )
-    parser.add_argument("--fix", action="store_true", help="Enable automatic fixes for certain linting issues")
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Enable automatic fixes for certain linting issues",
+    )
 
     args = parser.parse_args()
 

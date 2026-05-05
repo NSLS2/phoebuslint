@@ -1,10 +1,20 @@
-from phoebusgen.v4 import Screen
-from phoebusgen.v4.widgets import ActionButton, Label, TextUpdate
-from phoebusgen.v4.properties import OpenDisplayAction, OpenFileAction, OpenWebpageAction
-from phoebusgen.v4.properties.behavior import HasActionsRulesAndScripts
-from phoebusgen.v4.properties.display import HasPVName, HasItemsFromPV
-from phoebusgen.v4.widgets import Widget, EmbeddedDisplay, ActionButton
 from pathlib import Path
+
+from phoebusgen.v4 import Screen
+from phoebusgen.v4.properties import (
+    OpenDisplayAction,
+    OpenFileAction,
+    OpenWebpageAction,
+)
+from phoebusgen.v4.properties.behavior import HasActionsRulesAndScripts
+from phoebusgen.v4.properties.display import HasItemsFromPV, HasPVName
+from phoebusgen.v4.widgets import (
+    ActionButton,
+    EmbeddedDisplay,
+    Label,
+    TextUpdate,
+    Widget,
+)
 
 from ..linter import LintRule, RuleViolation, SeverityLevel
 
@@ -155,21 +165,27 @@ class EmbeddedDisplayPathDoesNotExist(LintRule):
                 path = Path(screen.bob_file).parent / path
             if not path.exists() or not path.is_file():
                 rule_violations.append(
-                    cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Path: {widget.file}")
+                    cls.rule_violation_factory(
+                        screen=screen,
+                        widget=widget,
+                        details=f"{cls.description} Path: {widget.file}",
+                    )
                 )
 
         return rule_violations
-    
+
 
 class EmbeddedDisplayPathIsOpiFile(LintRule):
-    """Rule that checks if an EmbeddedDisplay widget has a path that points to an OPI file."""
+    """Checks if EmbeddedDisplay has a path that points to an OPI file."""
 
     rule_code = "W109"
 
     # TODO: Make this ERROR. We want to get out of the habit of mixing bob and opi
-    rule_severity = SeverityLevel.WARNING 
+    rule_severity = SeverityLevel.WARNING
 
-    description = "EmbeddedDisplay widget has a path that points to an OPI file, not a bob file."
+    description = (
+        "EmbeddedDisplay widget has a path that points to an OPI file, not a bob file."
+    )
 
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
@@ -180,10 +196,15 @@ class EmbeddedDisplayPathIsOpiFile(LintRule):
                 path = Path(screen.bob_file).parent / path
             if path.suffix.lower() == ".opi":
                 rule_violations.append(
-                    cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Path: {widget.file}")
+                    cls.rule_violation_factory(
+                        screen=screen,
+                        widget=widget,
+                        details=f"{cls.description} Path: {widget.file}",
+                    )
                 )
 
         return rule_violations
+
 
 class OpenDisplayActionPathNotSet(LintRule):
     """Rule that checks if an OpenDisplayAction has no file path set."""
@@ -226,18 +247,24 @@ class OpenDisplayActionPathDoesNotExist(LintRule):
                         path = Path(screen.bob_file).parent / path
                     if not path.exists() or not path.is_file():
                         rule_violations.append(
-                            cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Path: {action.file}")
+                            cls.rule_violation_factory(
+                                screen=screen,
+                                widget=widget,
+                                details=f"{cls.description} Path: {action.file}",
+                            )
                         )
 
         return rule_violations
 
 
 class OpenDisplayActionPathIsOpiFile(LintRule):
-    """Rule that checks if an OpenDisplayAction has a path that points to an OPI file."""
+    """Checks if OpenDisplayAction has a path that points to an OPI file."""
 
     rule_code = "W112"
     rule_severity = SeverityLevel.WARNING
-    description = "OpenDisplayAction has a path that points to an OPI file, not a bob file."
+    description = (
+        "OpenDisplayAction has a path that points to an OPI file, not a bob file."
+    )
 
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
@@ -252,7 +279,11 @@ class OpenDisplayActionPathIsOpiFile(LintRule):
                         path = Path(screen.bob_file).parent / path
                     if path.suffix.lower() == ".opi":
                         rule_violations.append(
-                            cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Path: {action.file}")
+                            cls.rule_violation_factory(
+                                screen=screen,
+                                widget=widget,
+                                details=f"{cls.description} Path: {action.file}",
+                            )
                         )
 
         return rule_violations
@@ -277,7 +308,11 @@ class OpenFileActionPathDoesNotExist(LintRule):
                         path = Path(screen.bob_file).parent / path
                     if not path.exists() or not path.is_file():
                         rule_violations.append(
-                            cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Path: {action.file}")
+                            cls.rule_violation_factory(
+                                screen=screen,
+                                widget=widget,
+                                details=f"{cls.description} Path: {action.file}",
+                            )
                         )
 
         return rule_violations
@@ -299,7 +334,11 @@ class OpenWebpageActionInvalidUrl(LintRule):
                 if isinstance(action, OpenWebpageAction):
                     if not action.url.startswith(("http://", "https://")):
                         rule_violations.append(
-                            cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} URL: {action.url}")
+                            cls.rule_violation_factory(
+                                screen=screen,
+                                widget=widget,
+                                details=f"{cls.description} URL: {action.url}",
+                            )
                         )
 
         return rule_violations
@@ -316,7 +355,11 @@ class PVNamePropertyNotSet(LintRule):
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
         for widget in screen.get_widgets_by_property_class(HasPVName):
-            if not isinstance(widget, Widget) or (isinstance(widget, HasItemsFromPV) and not widget.items_from_pv) or isinstance(widget, ActionButton):
+            if (
+                not isinstance(widget, Widget)
+                or (isinstance(widget, HasItemsFromPV) and not widget.items_from_pv)
+                or isinstance(widget, ActionButton)
+            ):
                 continue
             if not widget.pv_name or widget.pv_name.strip() == "":
                 rule_violations.append(

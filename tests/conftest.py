@@ -3,7 +3,6 @@ import inspect
 import pytest
 from phoebusgen.v4 import Screen
 from phoebuslint import LintRule, RecursiveLintRule
-from phoebuslint.linter import RuleViolation
 
 
 @pytest.fixture

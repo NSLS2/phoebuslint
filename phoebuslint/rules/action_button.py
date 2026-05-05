@@ -1,6 +1,7 @@
-from ..linter import LintRule, RuleViolation
 from phoebusgen.v4 import Screen
-from phoebusgen.v4.widgets import Widget, ActionButton
+from phoebusgen.v4.widgets import ActionButton
+
+from ..linter import LintRule, RuleViolation
 
 
 class ActionButtonHasNoActions(LintRule):

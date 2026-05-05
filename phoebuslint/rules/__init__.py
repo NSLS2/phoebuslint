@@ -6,7 +6,18 @@ from .screen import (
     TitleEmptyOrNotSet,
     TopLevelTagNotDisplay,
 )
-from .widget import WidgetHeightOrWidthZeroOrNegative, WidgetOutOfBounds, EmbeddedDisplayNoFilePathSet, OpenWebpageActionInvalidUrl, OpenDisplayActionPathDoesNotExist, OpenFileActionPathDoesNotExist, OpenDisplayActionPathIsOpiFile, OpenDisplayActionPathNotSet, EmbeddedDisplayPathIsOpiFile, EmbeddedDisplayPathDoesNotExist
+from .widget import (
+    EmbeddedDisplayNoFilePathSet,
+    EmbeddedDisplayPathDoesNotExist,
+    EmbeddedDisplayPathIsOpiFile,
+    OpenDisplayActionPathDoesNotExist,
+    OpenDisplayActionPathIsOpiFile,
+    OpenDisplayActionPathNotSet,
+    OpenFileActionPathDoesNotExist,
+    OpenWebpageActionInvalidUrl,
+    WidgetHeightOrWidthZeroOrNegative,
+    WidgetOutOfBounds,
+)
 
 __all__ = [
     "TitleEmptyOrNotSet",
