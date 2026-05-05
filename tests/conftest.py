@@ -30,14 +30,3 @@ def screen_given_xml_factory(tmp_path):
         return Screen(f_name=str(bob_file))
 
     return _factory
-
-
-@pytest.fixture(scope="session")
-def assert_violations():
-    def _assert_violations(
-        violations: list[RuleViolation],
-        has_violations: bool,
-    ):
-        assert (len(violations) > 0) == has_violations
-
-    return _assert_violations
