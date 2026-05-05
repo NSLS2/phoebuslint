@@ -47,11 +47,17 @@ class SubscreensWithUnexpandedMacros(RecursiveLintRule):
                         widget_macros[macro] = widget.macros[macro]
 
             if isinstance(widget, HasPVName):
-                wi
-                if not _can_expand_macros(widget.pv_name, screen_macros):
+                if not _can_expand_macros(widget.pv_name, widget_macros):
                     rule_violations.append(
                         cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} PVName: {widget.pv_name}")
                     )
+            elif isinstance(widget, HasText):
+                if not _can_expand_macros(widget.text, widget_macros):
+                    rule_violations.append(
+                        cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Text: {widget.text}")
+                    )
+            elif isinstance(widget, EmbeddedDisplay):
+                rule_violations.extend()
         return rule_violations
 
     @classmethod

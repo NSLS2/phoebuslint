@@ -1,11 +1,8 @@
 from phoebusgen.v4 import Screen
-<<<<<<< Updated upstream
 from phoebusgen.v4.widgets import ActionButton, Label, TextUpdate
-=======
 from phoebusgen.v4.properties import HasActionsRulesAndScripts, HasPVName, OpenDisplayAction, OpenFileAction, OpenWebpageAction, HasItemsFromPV
 from phoebusgen.v4.widgets import Widget, EmbeddedDisplay, ActionButton
 from pathlib import Path
->>>>>>> Stashed changes
 
 from ..linter import LintRule, RuleViolation, SeverityLevel
 
@@ -46,7 +43,6 @@ class WidgetOutOfBounds(LintRule):
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
-<<<<<<< Updated upstream
         return rule_violations if len(rule_violations) > 0 else None
 
 
@@ -121,7 +117,6 @@ class TextUpdateWithNoDefinedPV(LintRule):
                     cls.rule_violation_factory(screen=screen, widget=text_update)
                 )
         return rule_violations if len(rule_violations) > 0 else None
-=======
         return rule_violations
 
 
@@ -323,4 +318,3 @@ class PVNamePropertyNotSet(LintRule):
                 )
 
         return rule_violations
->>>>>>> Stashed changes

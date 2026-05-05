@@ -158,7 +158,6 @@ class RecursiveLintRule(RuleViolationFactory, ABC):
         ...
 
 
-<<<<<<< Updated upstream
 class FixableLintRule(LintRule, ABC):
     """Abstract base class for linting rules that can be automatically fixed."""
 
@@ -193,7 +192,6 @@ class FixableRecursiveLintRule(RecursiveLintRule, ABC):
             bool: True if a fix was applied, False otherwise.
         """
         ...
-=======
 @dataclass(frozen=True)
 class NavigationStep:
     from_screen: Path
@@ -353,7 +351,6 @@ class ScreenNavigationDAG:
             except Exception as e:
                 print(f"Warning: Could not load screen at {bob_file}: {e}")
         return dag
->>>>>>> Stashed changes
 
 
 class PhoebusLinter:
@@ -362,12 +359,8 @@ class PhoebusLinter:
     def __init__(
         self,
         fail_severity: SeverityLevel = SeverityLevel.WARNING,
-<<<<<<< Updated upstream
-        disable_rules: list[str] = [],
-=======
         disabled_rule_codes: list[str] | None = None,
         enable_fixes: bool = False,
->>>>>>> Stashed changes
     ):
         self._enabled_rules = {
             rule
@@ -385,12 +378,8 @@ class PhoebusLinter:
             data = yaml.safe_load(f)
         disable_rules = data.get("disable_rules", [])
         fail_severity = SeverityLevel[data.get("fail_severity", "warning").upper()]
-<<<<<<< Updated upstream
-        return cls(fail_severity=fail_severity, disable_rules=disable_rules)
-=======
         enable_fixes = data.get("enable_fixes", False)
         return cls(fail_severity=fail_severity, disabled_rule_codes=disabled_rule_codes, enable_fixes=enable_fixes)
->>>>>>> Stashed changes
 
     def lint_screen(
         self, screen: Screen, visited: dict[Path, list[RuleViolation]] | None = None

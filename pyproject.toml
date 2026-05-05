@@ -29,7 +29,7 @@ dev = [
   "import-linter",
   "pre-commit",
   "ruff",
-  "tox-direct",
+  "ty",
 ]
 
 docs = [
