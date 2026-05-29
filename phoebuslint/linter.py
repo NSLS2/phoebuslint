@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import IntEnum
 from itertools import chain
+import os
 from pathlib import Path
 
 from phoebusgen.v4 import Screen
@@ -155,9 +156,14 @@ class FixableLintRule(LintRule, ABC):
         ...
 
 
+def get_all_rules() -> list[type[LintRule]]:
+    basic_rules = [rule for rule in LintRule.__subclasses__() if not inspect.isabstract(rule)]
+    fixable_rules = [rule for rule in FixableLintRule.__subclasses__() if not inspect.isabstract(rule)]
+    return basic_rules + fixable_rules
+
 def get_all_rule_codes() -> list[str]:
     """Get all rule codes from registered LintRule subclasses."""
-    return [rule.rule_code for rule in LintRule.__subclasses__() if not inspect.isabstract(rule)]
+    return [rule.rule_code for rule in get_all_rules()]
 
 
 class PhoebusLinter:
@@ -172,9 +178,8 @@ class PhoebusLinter:
     ):
         self._enabled_rules = {
             rule
-            for rule in LintRule.__subclasses__()
-            if not inspect.isabstract(rule)
-            and rule.rule_code not in (disabled_rule_codes or [])
+            for rule in get_all_rules()
+            if rule.rule_code not in (disabled_rule_codes or [])
         }
         logger.debug(
             f"Disabled rules: {disabled_rule_codes}"
@@ -251,6 +256,12 @@ class PhoebusLinter:
             if violations:
                 if issubclass(rule_cls, FixableLintRule) and self._enable_auto_fixes:
                     rule_cls.fix(screen)
+                    # In some cases, a screen will just be deleted by the fix (i.e. empty screen)
+                    # Don't bother to keep linting this screen after that.
+                    if os.path.exists(screen.bob_file):
+                        screen.write_screen()
+                    else:
+                        break
                 else:
                     if issubclass(rule_cls, FixableLintRule):
                         num_fixable += len(violations)
@@ -396,7 +407,7 @@ class PhoebusLinter:
             print(f"Found {total_issues} total issues.")
 
         if num_fixable > 0:
-            print(f"{num_fixable} issues are fixable. Re-run with --fix to automatically apply fixes.")
+            print(f"{num_fixable} issue{'s are' if num_fixable > 1 else ' is'} fixable. Re-run with --fix to automatically apply fixes.")
 
     def did_linting_pass(self, results: dict[Path, list[RuleViolation]]) -> bool:
         """Determine if the linting results pass based on the configured fail severity.

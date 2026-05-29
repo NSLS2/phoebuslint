@@ -312,7 +312,9 @@ class OpenFileActionPathDoesNotExist(LintRule):
                 continue
             for action in widget.actions:
                 if isinstance(action, OpenFileAction):
-                    path = Path(action.file)
+                    path = action.file
+                    if path is None:
+                        continue
                     if not path.is_absolute() and screen.bob_file:
                         path = Path(screen.bob_file).parent / path
                     if not path.exists() or not path.is_file():
@@ -402,14 +404,20 @@ class DuplicateWidgetNames(FixableLintRule):
     
     @classmethod
     def fix(cls, screen: Screen) -> None:
-        seen_names = set()
+        seen_names: dict[str, int] = {}
         for widget in get_all_widgets(screen):
             if not isinstance(widget, HasName):
                 continue
             if widget.name in seen_names:
-                widget.name = f"{widget.name}_{len(seen_names)}"
+                seen_names[widget.name] += 1
+                new_name = f"{widget.name}_{seen_names[widget.name]}"
+                while new_name in seen_names:
+                    seen_names[widget.name] += 1
+                    new_name = f"{widget.name}_{seen_names[widget.name]}"
+                widget.name = new_name
+                seen_names[new_name] = 0
             else:
-                seen_names.add(widget.name)
+                seen_names[widget.name] = 0
 
 
 class FGAndBGColorAreIdentical(LintRule):
@@ -424,7 +432,7 @@ class FGAndBGColorAreIdentical(LintRule):
         for widget in (w for w in get_all_widgets(screen) if isinstance(w, HasForegroundColor) and isinstance(w, HasBackgroundColor)):
             if widget.foreground_color == widget.background_color:
                 rule_violations.append(
-                    cls.rule_violation_factory(screen=screen, widget=widget)
+                    cls.rule_violation_factory(screen=screen, widget=widget, details=cls.description + f" (foreground: {widget.foreground_color}, background: {widget.background_color})")
                 )
 
         return rule_violations

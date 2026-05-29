@@ -75,7 +75,7 @@ class TitleEmptyOrNotSet(LintRule):
         return []
 
 
-class DefaultTitleSet(LintRule):
+class DefaultTitleSet(FixableLintRule):
     """Rule that checks if a screen has the default title set."""
 
     rule_code = "S106"
@@ -88,6 +88,10 @@ class DefaultTitleSet(LintRule):
             return [cls.rule_violation_factory(screen)]
         return []
 
+    @classmethod
+    def fix(cls, screen: Screen) -> None:
+        if screen.bob_file is not None:
+            screen.name = os.path.splitext(os.path.basename(screen.bob_file))[0]
 
 class EmptyScreen(FixableLintRule):
     """Rule that checks if a screen is empty (has no widgets)."""

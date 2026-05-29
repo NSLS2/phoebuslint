@@ -10,7 +10,7 @@ from phoebusgen.v4.properties.widget import HasFile
 from ..linter import LintRule, RuleViolation
 
 
-def check_path_exists_relative_to_screen(screen: Screen, file_path: str) -> bool:
+def check_path_exists_relative_to_screen(screen: Screen, file_path: Path) -> bool:
     """Check if a given file path exists relative to the screen's bob file location."""
     if screen.bob_file is None:
         relative_to = Path.cwd()
@@ -30,7 +30,7 @@ class FilePropertyPathDoesNotExist(LintRule):
     def check(cls, screen: Screen) -> list[RuleViolation]:
         violations = []
         for widget in screen.get_widgets_by_property_class(HasFile):
-            if widget.file is not None and not Path(widget.file).is_file():
+            if widget.file is not None and not widget.file.is_file():
                 violations.append(
                     cls.rule_violation_factory(
                         screen,
@@ -127,7 +127,7 @@ class ScriptFilePathDoesNotExist(LintRule):
 class EmbeddedDisplayPathDoesNotExist(LintRule):
     """Rule that checks if an EmbeddedDisplay widget references a non-existent file."""
 
-    rule_code = "ED101"
+    rule_code = "P105"
     description = "EmbeddedDisplay references a non-existent file."
 
     @classmethod
@@ -154,7 +154,7 @@ class EmbeddedDisplayPathDoesNotExist(LintRule):
 class EmbeddedDisplayPathIsNotABobfile(LintRule):
     """Rule that checks if an EmbeddedDisplay widget references a non-.bob file."""
 
-    rule_code = "ED102"
+    rule_code = "P106"
     description = "EmbeddedDisplay references a non-.bob file."
 
     @classmethod

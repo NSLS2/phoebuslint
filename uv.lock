@@ -450,8 +450,8 @@ wheels = [
 
 [[package]]
 name = "phoebusgen"
-version = "0.1.dev375+g91f3f0bd2"
-source = { git = "https://github.com/jwlodek/phoebusgen?rev=v4#91f3f0bd2b91a7f4e672e80f43d5b8ba5602de64" }
+version = "0.1.dev380+g56eb36e33"
+source = { git = "https://github.com/jwlodek/phoebusgen?rev=v4#56eb36e335749c96b99514941480fb340f2874fa" }
 
 [[package]]
 name = "phoebuslint"

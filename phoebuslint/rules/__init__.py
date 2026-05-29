@@ -20,6 +20,11 @@ from .widget import (
     WidgetOutOfBounds,
 )
 
+from .action_button import (
+    ActionButtonHasNoActions,
+    ActionButtonHasTooManyActions,
+)
+
 __all__ = [
     "UndefinedMacrosInScreenTransition",
     "TitleEmptyOrNotSet",
@@ -38,4 +43,6 @@ __all__ = [
     "OpenDisplayActionPathNotSet",
     "EmbeddedDisplayPathIsOpiFile",
     "EmbeddedDisplayPathDoesNotExist",
+    "ActionButtonHasNoActions",
+    "ActionButtonHasTooManyActions",
 ]
