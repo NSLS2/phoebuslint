@@ -1,7 +1,6 @@
 from .linter import (
     LintRule,
     PhoebusLinter,
-    RecursiveLintRule,
     RuleViolation,
     SeverityLevel,
 )
@@ -18,7 +17,6 @@ from .rules import (
 
 __all__ = [
     "PhoebusLinter",
-    "RecursiveLintRule",
     "RuleViolation",
     "LintRule",
     "SeverityLevel",

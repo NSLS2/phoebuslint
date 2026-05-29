@@ -10,7 +10,7 @@ class UndefinedMacrosInScreenTransition(LintRule):
 
     rule_code = "M001"
     description = "Screen transition leads to undefined macros in target screen."
-    rule_severity = SeverityLevel.WARNING
+    rule_severity = SeverityLevel.ERROR
 
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
@@ -35,6 +35,10 @@ class UndefinedMacrosInScreenTransition(LintRule):
 
             target_required_macros = target_screen.get_used_macros()
             available_macros = source_used_macros | set(edge.macros.keys())
+
+            # pv_name and pv_value are special macros often used in tooltips
+            available_macros |= {"pv_name", "pv_value"}
+
             undefined_macros = target_required_macros - available_macros
 
             if undefined_macros:
@@ -65,59 +69,3 @@ def _can_expand_macros(value: str, macros: dict[str, str]) -> bool:
         macro_value = macros[macro_name]
         value = value[:start_index] + macro_value + value[end_index + 1 :]
     return True
-
-
-# class SubscreensWithUnexpandedMacros(RecursiveLintRule):
-#     """Rule that checks for subscreens with unexpanded macros in their file paths."""
-
-#     rule_code = "M101"
-#     description = "Unexpanded macros found in subscreen."
-
-#     @classmethod
-#     def check_for_unexpanded_macros(cls, navigation_path: list[Path], all_macros: dict[str, str], screen: Screen) -> dict[Path, list[RuleViolation]]:
-#         rule_violations = {}
-#         screen_macros = copy.deepcopy(all_macros)
-#         for macro in screen.macros:
-#             if not _can_expand_macros(screen.macros[macro], screen_macros):
-#                 rule_violations.append(
-#                     cls.rule_violation_factory(screen=screen, details=f"{cls.description} Macro: {macro} Value: {screen.macros[macro]}")
-#                 )
-
-#         screen_macros.update(screen.macros)
-#         for widget in screen.get_widgets():
-#             widget_macros = copy.deepcopy(screen_macros)
-#             if isinstance(widget, HasMacros):
-#                 for macro in widget.macros:
-#                     if not _can_expand_macros(widget.macros[macro], screen_macros):
-#                         rule_violations.append(
-#                             cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Macro: {macro} Value: {widget.macros[macro]}")
-#                         )
-#                     else:
-#                         widget_macros[macro] = widget.macros[macro]
-
-#             if isinstance(widget, HasPVName):
-#                 if not _can_expand_macros(widget.pv_name, widget_macros):
-#                     rule_violations.append(
-#                         cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} PVName: {widget.pv_name}")
-#                     )
-#             elif isinstance(widget, HasText):
-#                 if not _can_expand_macros(widget.text, widget_macros):
-#                     rule_violations.append(
-#                         cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Text: {widget.text}")
-#                     )
-#             elif isinstance(widget, EmbeddedDisplay):
-#                 rule_violations.extend()
-#         return rule_violations
-
-#     @classmethod
-#     def check(cls, screen: Screen, visited: set[Path] = set()) -> dict[Path, list[RuleViolation]]:
-#         rule_violations = {}
-#         all_macros = copy.deepcopy(screen.macros)
-
-#         for widget in screen
-#         for widget in screen.get_widgets_by_type("SubScreen"):
-#             if widget.file and "${" in widget.file:
-#                 rule_violations.append(
-#                     cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Path: {widget.file}")
-#                 )
-#         return rule_violations

@@ -7,11 +7,24 @@ from pathlib import Path
 
 import yaml
 from phoebusgen.v4 import Screen
-from phoebusgen.v4.widgets import Widget
+from phoebusgen.v4.widgets import HasWidgets, Tabs, Widget
 import logging
 import sys
 
 from .log import logger, BLUE, GREEN, YELLOW, RED, RESET
+
+
+def get_all_widgets(container: HasWidgets) -> list[Widget]:
+    """Recursively collect all widgets from a container, including nested ones."""
+    widgets: list[Widget] = []
+    for widget in container.get_widgets():
+        widgets.append(widget)
+        if isinstance(widget, HasWidgets):
+            widgets.extend(get_all_widgets(widget))
+        elif isinstance(widget, Tabs):
+            for tab in widget.tabs:
+                widgets.extend(get_all_widgets(tab))
+    return widgets
 
 
 class SeverityLevel(IntEnum):
@@ -130,65 +143,16 @@ class LintRule(RuleViolationFactory, ABC):
         ...
 
 
-class RecursiveLintRule(RuleViolationFactory, ABC):
-    """ABC for linting rules that require recursive linting of linked screens."""
-
-    @classmethod
-    @abstractmethod
-    def check(
-        cls,
-        screen: Screen,
-        visited: set[Path] | None = None,
-    ) -> dict[Path, list[RuleViolation]]:
-        """Recursively check the given screen for issues covered by this rule.
-
-        Parameters
-        ----------
-        screen : Screen
-            The screen to be checked.
-        visited : optional, set[Path]
-            Set of visited paths to avoid infinite recursion.
-
-        Returns
-        -------
-        dict[Path, list[RuleViolation]]
-            Map of paths to violations found.
-        """
-        ...
-
-
 class FixableLintRule(LintRule, ABC):
     """Abstract base class for linting rules that can be automatically fixed."""
 
     @classmethod
     @abstractmethod
-    def fix(cls, screen: Screen) -> bool:
+    def fix(cls, screen: Screen) -> None:
         """Attempt to fix the issue covered by this rule on the given screen.
 
         Args:
             screen (Screen): The screen to attempt to fix.
-        Returns:
-            bool: True if a fix was applied, False otherwise.
-        """
-        ...
-
-
-class FixableRecursiveLintRule(RecursiveLintRule, ABC):
-    """Abstract base class for recursive linting rules that can be fixed."""
-
-    @classmethod
-    @abstractmethod
-    def fix(
-        cls, linter: "PhoebusLinter", screen: Screen, visited_screens: dict[Path, bool]
-    ) -> bool:
-        """Attempt to fix the issue on the screen, potentially requiring recursion.
-
-        Args:
-            linter (PhoebusLinter): Linter instance. Used in recursive fixes.
-            screen (Screen): The screen to attempt to fix.
-            visited_screens (dict[Path, bool]): Visited screens dict to avoid repeats.
-        Returns:
-            bool: True if a fix was applied, False otherwise.
         """
         ...
 
@@ -205,7 +169,7 @@ class PhoebusLinter:
     ):
         self._enabled_rules = {
             rule
-            for rule in (LintRule.__subclasses__() + RecursiveLintRule.__subclasses__())
+            for rule in LintRule.__subclasses__()
             if not inspect.isabstract(rule)
             and rule.rule_code not in (disabled_rule_codes or [])
         }
@@ -253,28 +217,22 @@ class PhoebusLinter:
             logger.debug(f"Skipping ignored screen: {screen.bob_file}")
             return {}
 
-        logger.info(f"Linting screen: {screen.bob_file}")
-
         if visited is None:
             visited = {}
 
-        file_path = Path(screen.bob_file)
+        file_path = Path(screen.bob_file).resolve()
 
         if file_path in visited:
-            return {file_path: visited[file_path]}
+            logger.debug(f"Skipping already-visited screen: {file_path}")
+            return visited
+
+        logger.info(f"Linting screen: {screen.bob_file}")
 
         visited[file_path] = []
         for rule_cls in self._enabled_rules:
             logger.debug(f"Checking rule: {rule_cls.__name__}")
             try:
-                if issubclass(rule_cls, RecursiveLintRule):
-                    violations_by_path = rule_cls.check(screen)
-                    for visited_file_path in violations_by_path:
-                        visited[visited_file_path].extend(
-                            violations_by_path.get(visited_file_path, [])
-                        )
-                else:
-                    visited[file_path].extend(rule_cls.check(screen))
+                visited[file_path].extend(rule_cls.check(screen))
             except Exception as e:
                 visited[file_path].append(
                     RuleViolation(
@@ -286,9 +244,16 @@ class PhoebusLinter:
                     )
                 )
 
+        for screen_transition in screen.get_linked_screens():
+            target_path = (file_path.parent / screen_transition.target).resolve()
+            try:
+                self.lint_file(target_path, visited=visited)
+            except FileNotFoundError as e:
+                logger.debug(f"Cannot lint linked screen {screen_transition.target}: {e}")
+
         # If being called from higher level function, store results to avoid re-linting
 
-        return {file_path: visited[file_path]}
+        return visited
 
     def lint_file(
         self, file_path: Path, visited: dict[Path, list[RuleViolation]] | None = None
@@ -312,29 +277,39 @@ class PhoebusLinter:
 
         Raises
         ------
-        ValueError
+        FileNotFoundError
             If the file does not exist or is not a .bob file.
         """
 
         if visited is None:
             visited = {}
+
+        file_path = file_path.resolve()
+
+        if file_path in visited:
+            logger.debug(f"Skipping already-visited file: {file_path}")
+            return visited
+
         if not file_path.is_file() or file_path.suffix != ".bob":
-            raise ValueError(f"File {file_path} does not exist or is not a .bob file.")
+            raise FileNotFoundError(f"File {file_path} does not exist or is not a .bob file.")
 
         try:
             screen = Screen(f_name=str(file_path))
+
+            # If a screen has widgets that are not valid phoebus XML this will raise.
+            screen.get_all_widgets()
         except Exception as e:
-            return {
-                file_path: [
-                    RuleViolation(
-                        rule_name="ScreenNotParsable",
-                        rule_code="S101",
-                        rule_severity=SeverityLevel.ERROR,
-                        screen=file_path,
-                        details=f"Error parsing .bob file: {e}",
-                    )
-                ]
-            }
+            logger.error(f"{file_path} is not a valid phoebus .bob xml file!")
+            visited[file_path] = [
+                RuleViolation(
+                    rule_name="ScreenNotParsable",
+                    rule_code="S101",
+                    rule_severity=SeverityLevel.ERROR,
+                    screen=file_path,
+                    details=f"Error parsing .bob file: {e}",
+                )
+            ]
+            return visited
         return self.lint_screen(screen, visited=visited)
 
     def lint_directory(self, dir_path: Path) -> dict[Path, list[RuleViolation]]:

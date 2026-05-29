@@ -7,7 +7,8 @@ from phoebusgen.v4.properties import (
     OpenWebpageAction,
 )
 from phoebusgen.v4.properties.behavior import HasActionsRulesAndScripts
-from phoebusgen.v4.properties.display import HasItemsFromPV, HasPVName
+from phoebusgen.v4.properties.widget import HasName
+from phoebusgen.v4.properties.display import HasBackgroundColor, HasForegroundColor, HasItemsFromPV, HasPVName
 from phoebusgen.v4.widgets import (
     ActionButton,
     EmbeddedDisplay,
@@ -16,7 +17,7 @@ from phoebusgen.v4.widgets import (
     Widget,
 )
 
-from ..linter import LintRule, RuleViolation, SeverityLevel
+from ..linter import FixableLintRule, LintRule, RuleViolation, SeverityLevel, get_all_widgets
 
 
 class WidgetHeightOrWidthZeroOrNegative(LintRule):
@@ -28,7 +29,7 @@ class WidgetHeightOrWidthZeroOrNegative(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in screen.get_widgets():
+        for widget in get_all_widgets(screen):
             if widget.width <= 0 or widget.height <= 0:
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=widget)
@@ -45,7 +46,7 @@ class WidgetOutOfBounds(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in screen.get_widgets():
+        for widget in get_all_widgets(screen):
             if (
                 widget.x < 0
                 or widget.y < 0
@@ -67,8 +68,8 @@ class ActionButtonWithNoActions(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in screen.get_widgets_by_type(ActionButton):
-            if len(widget.actions) == 0:
+        for widget in get_all_widgets(screen):
+            if isinstance(widget, ActionButton) and len(widget.actions) == 0:
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
@@ -84,8 +85,8 @@ class EmptyLabel(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in screen.get_widgets_by_type(Label):
-            if widget.text.strip() == "":
+        for widget in get_all_widgets(screen):
+            if isinstance(widget, Label) and widget.text.strip() == "":
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
@@ -101,7 +102,9 @@ class LabelWithExcessiveTextLength(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in screen.get_widgets_by_type(Label):
+        for widget in get_all_widgets(screen):
+            if not isinstance(widget, Label):
+                continue
             # Assumes typical DPI of 96 and average character width of font size * 0.5
             # TODO: Make this configurable
             if (
@@ -123,10 +126,12 @@ class TextUpdateWithNoDefinedPV(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for text_update in screen.get_widgets_by_type(TextUpdate):
-            if text_update.pv_name is None or text_update.pv_name.strip() == "":
+        for widget in get_all_widgets(screen):
+            if isinstance(widget, TextUpdate) and (
+                widget.pv_name is None or widget.pv_name.strip() == ""
+            ):
                 rule_violations.append(
-                    cls.rule_violation_factory(screen=screen, widget=text_update)
+                    cls.rule_violation_factory(screen=screen, widget=widget)
                 )
         return rule_violations
 
@@ -141,8 +146,8 @@ class EmbeddedDisplayNoFilePathSet(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in screen.get_widgets_by_type(EmbeddedDisplay):
-            if not widget.file:
+        for widget in get_all_widgets(screen):
+            if isinstance(widget, EmbeddedDisplay) and not widget.file:
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
@@ -159,7 +164,9 @@ class EmbeddedDisplayPathDoesNotExist(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in screen.get_widgets_by_type(EmbeddedDisplay):
+        for widget in get_all_widgets(screen):
+            if not isinstance(widget, EmbeddedDisplay):
+                continue
             path = Path(widget.file)
             if not path.is_absolute() and screen.bob_file:
                 path = Path(screen.bob_file).parent / path
@@ -190,7 +197,9 @@ class EmbeddedDisplayPathIsOpiFile(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in screen.get_widgets_by_type(EmbeddedDisplay):
+        for widget in get_all_widgets(screen):
+            if not isinstance(widget, EmbeddedDisplay):
+                continue
             path = Path(widget.file)
             if not path.is_absolute() and screen.bob_file:
                 path = Path(screen.bob_file).parent / path
@@ -216,8 +225,8 @@ class OpenDisplayActionPathNotSet(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in screen.get_widgets_by_property_class(HasActionsRulesAndScripts):
-            if not isinstance(widget, Widget):
+        for widget in get_all_widgets(screen):
+            if not isinstance(widget, HasActionsRulesAndScripts):
                 continue
             for action in widget.actions:
                 if isinstance(action, OpenDisplayAction) and not action.file:
@@ -237,8 +246,8 @@ class OpenDisplayActionPathDoesNotExist(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in screen.get_widgets_by_property_class(HasActionsRulesAndScripts):
-            if not isinstance(widget, Widget):
+        for widget in get_all_widgets(screen):
+            if not isinstance(widget, HasActionsRulesAndScripts):
                 continue
             for action in widget.actions:
                 if isinstance(action, OpenDisplayAction):
@@ -269,8 +278,8 @@ class OpenDisplayActionPathIsOpiFile(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in screen.get_widgets_by_property_class(HasActionsRulesAndScripts):
-            if not isinstance(widget, Widget):
+        for widget in get_all_widgets(screen):
+            if not isinstance(widget, HasActionsRulesAndScripts):
                 continue
             for action in widget.actions:
                 if isinstance(action, OpenDisplayAction):
@@ -298,8 +307,8 @@ class OpenFileActionPathDoesNotExist(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in screen.get_widgets_by_property_class(HasActionsRulesAndScripts):
-            if not isinstance(widget, Widget):
+        for widget in get_all_widgets(screen):
+            if not isinstance(widget, HasActionsRulesAndScripts):
                 continue
             for action in widget.actions:
                 if isinstance(action, OpenFileAction):
@@ -327,8 +336,8 @@ class OpenWebpageActionInvalidUrl(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in screen.get_widgets_by_property_class(HasActionsRulesAndScripts):
-            if not isinstance(widget, Widget):
+        for widget in get_all_widgets(screen):
+            if not isinstance(widget, HasActionsRulesAndScripts):
                 continue
             for action in widget.actions:
                 if isinstance(action, OpenWebpageAction):
@@ -354,14 +363,66 @@ class PVNamePropertyNotSet(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in screen.get_widgets_by_property_class(HasPVName):
+        for widget in get_all_widgets(screen):
             if (
-                not isinstance(widget, Widget)
+                not isinstance(widget, HasPVName)
                 or (isinstance(widget, HasItemsFromPV) and not widget.items_from_pv)
                 or isinstance(widget, ActionButton)
             ):
                 continue
             if not widget.pv_name or widget.pv_name.strip() == "":
+                rule_violations.append(
+                    cls.rule_violation_factory(screen=screen, widget=widget)
+                )
+
+        return rule_violations
+
+
+class DuplicateWidgetNames(FixableLintRule):
+    """Rule that checks for duplicate widget names."""
+
+    rule_code = "W116"
+    description = "Duplicate widget names found."
+
+    @classmethod
+    def check(cls, screen: Screen) -> list[RuleViolation]:
+        rule_violations = []
+        seen_names = set()
+        for widget in get_all_widgets(screen):
+            if not isinstance(widget, HasName):
+                continue
+            if widget.name in seen_names:
+                rule_violations.append(
+                    cls.rule_violation_factory(screen=screen, widget=widget)
+                )
+            else:
+                seen_names.add(widget.name)
+
+        return rule_violations
+    
+    @classmethod
+    def fix(cls, screen: Screen) -> None:
+        seen_names = set()
+        for widget in get_all_widgets(screen):
+            if not isinstance(widget, HasName):
+                continue
+            if widget.name in seen_names:
+                widget.name = f"{widget.name}_{len(seen_names)}"
+            else:
+                seen_names.add(widget.name)
+
+
+class FGAndBGColorAreIdentical(LintRule):
+    """Rule that checks if a widget's foreground and background colors are identical."""
+
+    rule_code = "W117"
+    description = "Foreground and background colors are identical."
+
+    @classmethod
+    def check(cls, screen: Screen) -> list[RuleViolation]:
+        rule_violations = []
+        for widget in (w for w in get_all_widgets(screen) if isinstance(w, HasForegroundColor) and isinstance(w, HasBackgroundColor)):
+            if widget.foreground_color == widget.background_color:
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
