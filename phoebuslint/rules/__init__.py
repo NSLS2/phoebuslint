@@ -1,3 +1,4 @@
+from .macros import UndefinedMacrosInScreenTransition
 from .screen import (
     DefaultTitleSet,
     EmptyScreen,
@@ -20,6 +21,7 @@ from .widget import (
 )
 
 __all__ = [
+    "UndefinedMacrosInScreenTransition",
     "TitleEmptyOrNotSet",
     "DefaultTitleSet",
     "EmptyScreen",

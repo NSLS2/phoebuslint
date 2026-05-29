@@ -2,11 +2,12 @@ import argparse
 import logging
 from pathlib import Path
 
-from ._version import __version__
-from .linter import PhoebusLinter
+import yaml
 
-logger = logging.getLogger("phoebuslint")
-logging.basicConfig(level=logging.INFO)
+from ._version import __version__
+from .linter import PhoebusLinter, SeverityLevel
+
+from .log import logger
 
 
 def main():
@@ -22,12 +23,13 @@ def main():
     )
     parser.add_argument(
         "paths",
-        nargs="+",
+        nargs="*",
+        default=["."],
         help="Paths to .bob files or directories to lint recursively",
     )
-    parser.add_argument(
-        "-d", "--debug", action="store_true", help="Enable debug logging"
-    )
+    parser.add_argument("-d", "--debug", action="store_true", help="Enable debug logging.")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Enable quiet mode, only show warning and above log messages and linting report.")
+
     parser.add_argument(
         "-v", "--version", action="version", version=f"PhoebusLint {__version__}"
     )
@@ -36,17 +38,38 @@ def main():
         action="store_true",
         help="Enable automatic fixes for certain linting issues",
     )
+    parser.add_argument("-i", "--ignore-paths", nargs="+", help="List of paths to ignore during linting.")
+    parser.add_argument(
+        "--fail-severity",
+        type=str,
+        choices=["INFO", "WARNING", "ERROR"],
+        help="Set the fail severity level",
+        default="WARNING",
+    )
 
     args = parser.parse_args()
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+    elif args.quiet:
+        logger.setLevel(logging.WARNING)
+
+    linter_config = {}
 
     if args.config and Path(args.config).is_file():
         with open(args.config) as f:
             config_content = f.read()
-        linter = PhoebusLinter.from_yaml(config_content)
-    else:
-        linter = PhoebusLinter(enable_fixes=args.fix)
+            linter_config.update(yaml.safe_load(config_content))
 
-    print(f"PhoebusLint version: {__version__}")
+    if args.fix:
+        linter_config["enable_fixes"] = True
+    if args.ignore_paths:
+        linter_config["ignore_paths"] = args.ignore_paths
+    if args.fail_severity:
+        linter_config["fail_severity"] = SeverityLevel[args.fail_severity]
+
+    linter = PhoebusLinter(**linter_config)
+
+    logger.info(f"PhoebusLint version: {__version__}")
 
     results = {}
     for path_str in args.paths:

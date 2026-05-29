@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--Saved on 2026-05-05 15:04:11 by jwlodek-->
+<display version="2.0.0">
+  <name>Example_TOP1</name>
+  <widget type="embedded" version="2.0.0">
+    <name>Embedded Display</name>
+    <macros>
+      <A>2</A>
+      <B>3</B>
+    </macros>
+    <file>Nested/Nested1.bob</file>
+    <x>30</x>
+    <y>40</y>
+  </widget>
+  <widget type="tabs" version="2.0.0">
+    <name>Tabs</name>
+    <tabs>
+      <tab>
+        <name>Tab 1</name>
+        <children>
+          <widget type="label" version="2.0.0">
+            <name>Label</name>
+            <x>78</x>
+            <y>152</y>
+          </widget>
+        </children>
+      </tab>
+      <tab>
+        <name>Tab 2</name>
+        <children>
+        </children>
+      </tab>
+    </tabs>
+    <x>750</x>
+    <y>720</y>
+  </widget>
+  <widget type="navtabs" version="2.0.0">
+    <name>Navigation Tabs</name>
+    <x>120</x>
+    <y>640</y>
+  </widget>
+  <widget type="group" version="3.0.0">
+    <name>Group</name>
+    <x>940</x>
+    <y>350</y>
+    <widget type="scaledslider" version="2.0.0">
+      <name>Scaled Slider</name>
+      <x>42</x>
+      <y>52</y>
+      <width>90</width>
+    </widget>
+  </widget>
+</display>
