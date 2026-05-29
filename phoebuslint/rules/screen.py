@@ -1,8 +1,9 @@
+import os
 from xml.etree import ElementTree as ET
 
 from phoebusgen.v4 import Screen
 
-from ..linter import LintRule, RuleViolation, SeverityLevel
+from ..linter import FixableLintRule, LintRule, RuleViolation, SeverityLevel
 
 
 class MissingDisplayTag(LintRule):
@@ -88,7 +89,7 @@ class DefaultTitleSet(LintRule):
         return []
 
 
-class EmptyScreen(LintRule):
+class EmptyScreen(FixableLintRule):
     """Rule that checks if a screen is empty (has no widgets)."""
 
     rule_code = "S107"
@@ -99,6 +100,11 @@ class EmptyScreen(LintRule):
         if len(screen.get_widgets()) == 0:
             return [cls.rule_violation_factory(screen=screen)]
         return []
+
+    @classmethod
+    def fix(cls, screen: Screen) -> None:
+        if screen.bob_file is not None:
+            os.remove(screen.bob_file)
 
 
 class ScreenHeightOrWidthZeroOrNegative(LintRule):

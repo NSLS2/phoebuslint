@@ -5,13 +5,11 @@ from enum import IntEnum
 from itertools import chain
 from pathlib import Path
 
-import yaml
 from phoebusgen.v4 import Screen
 from phoebusgen.v4.widgets import HasWidgets, Tabs, Widget
-import logging
-import sys
 
 from .log import logger, BLUE, GREEN, YELLOW, RED, RESET
+
 
 
 def get_all_widgets(container: HasWidgets) -> list[Widget]:
@@ -157,6 +155,11 @@ class FixableLintRule(LintRule, ABC):
         ...
 
 
+def get_all_rule_codes() -> list[str]:
+    """Get all rule codes from registered LintRule subclasses."""
+    return [rule.rule_code for rule in LintRule.__subclasses__() if not inspect.isabstract(rule)]
+
+
 class PhoebusLinter:
     """Class containing main linting logic for Phoebus screens."""
 
@@ -185,8 +188,8 @@ class PhoebusLinter:
         self._ignore_paths = ignore_paths or []
 
     def lint_screen(
-        self, screen: Screen, visited: dict[Path, list[RuleViolation]] | None = None
-    ) -> dict[Path, list[RuleViolation]]:
+        self, screen: Screen, visited: dict[Path, list[RuleViolation]] | None = None, num_fixable: int = 0
+    ) -> tuple[dict[Path, list[RuleViolation]], int]:
         """Lint a single Phoebus screen.
 
         Parameters
@@ -203,6 +206,8 @@ class PhoebusLinter:
         -------
         dict[Path, list[RuleViolation]]
             A dict mapping file paths to lists of violations found in those screens.
+        int
+            The number of fixable violations found.
 
         Raises
         ------
@@ -215,7 +220,7 @@ class PhoebusLinter:
         
         if any(str(screen.bob_file).startswith(path) for path in self._ignore_paths):
             logger.debug(f"Skipping ignored screen: {screen.bob_file}")
-            return {}
+            return {}, num_fixable
 
         if visited is None:
             visited = {}
@@ -224,7 +229,7 @@ class PhoebusLinter:
 
         if file_path in visited:
             logger.debug(f"Skipping already-visited screen: {file_path}")
-            return visited
+            return visited, num_fixable
 
         logger.info(f"Linting screen: {screen.bob_file}")
 
@@ -232,9 +237,9 @@ class PhoebusLinter:
         for rule_cls in self._enabled_rules:
             logger.debug(f"Checking rule: {rule_cls.__name__}")
             try:
-                visited[file_path].extend(rule_cls.check(screen))
+                violations = rule_cls.check(screen)
             except Exception as e:
-                visited[file_path].append(
+                violations = [
                     RuleViolation(
                         rule_name=rule_cls.__name__,
                         rule_code=rule_cls.rule_code,
@@ -242,22 +247,29 @@ class PhoebusLinter:
                         screen=screen,
                         details=f"Error while checking rule: {e}",
                     )
-                )
+                ]
+            if violations:
+                if issubclass(rule_cls, FixableLintRule) and self._enable_auto_fixes:
+                    rule_cls.fix(screen)
+                else:
+                    if issubclass(rule_cls, FixableLintRule):
+                        num_fixable += len(violations)
+                    visited[file_path].extend(violations)
 
         for screen_transition in screen.get_linked_screens():
             target_path = (file_path.parent / screen_transition.target).resolve()
             try:
-                self.lint_file(target_path, visited=visited)
+                visited, num_fixable = self.lint_file(target_path, visited=visited, num_fixable=num_fixable)
             except FileNotFoundError as e:
                 logger.debug(f"Cannot lint linked screen {screen_transition.target}: {e}")
 
         # If being called from higher level function, store results to avoid re-linting
 
-        return visited
+        return visited, num_fixable
 
     def lint_file(
-        self, file_path: Path, visited: dict[Path, list[RuleViolation]] | None = None
-    ) -> dict[Path, list[RuleViolation]]:
+        self, file_path: Path, visited: dict[Path, list[RuleViolation]] | None = None, num_fixable: int = 0
+    ) -> tuple[dict[Path, list[RuleViolation]], int]:
         """Lint a single .bob file.
 
         Parameters
@@ -288,7 +300,7 @@ class PhoebusLinter:
 
         if file_path in visited:
             logger.debug(f"Skipping already-visited file: {file_path}")
-            return visited
+            return visited, num_fixable
 
         if not file_path.is_file() or file_path.suffix != ".bob":
             raise FileNotFoundError(f"File {file_path} does not exist or is not a .bob file.")
@@ -309,10 +321,10 @@ class PhoebusLinter:
                     details=f"Error parsing .bob file: {e}",
                 )
             ]
-            return visited
-        return self.lint_screen(screen, visited=visited)
+            return visited, num_fixable
+        return self.lint_screen(screen, visited=visited, num_fixable=num_fixable)
 
-    def lint_directory(self, dir_path: Path) -> dict[Path, list[RuleViolation]]:
+    def lint_directory(self, dir_path: Path) -> tuple[dict[Path, list[RuleViolation]], int]:
         """Lint all .bob files in the given directory and its subdirectories.
 
         Args:
@@ -320,20 +332,22 @@ class PhoebusLinter:
         Returns:
             dict[Path, list[RuleViolation]]: Map of paths to violations.
         """
-
+        num_fixable = 0
         visited: dict[Path, list[RuleViolation]] = {}
         for file_path in chain(dir_path.glob("*.bob"), dir_path.glob("**/*.bob")):
-            self.lint_file(file_path, visited=visited)
+            visited, num_fixable = self.lint_file(file_path, visited=visited, num_fixable=num_fixable)
+        return visited, num_fixable
 
-        return visited
 
-    def display_linting_report(self, results: dict[Path, list[RuleViolation]]) -> None:
+    def display_linting_report(self, results: dict[Path, list[RuleViolation]], num_fixable: int) -> None:
         """Display a linting report based on the given linting results.
 
         Parameters
         ----------
         results : dict[Path, list[RuleViolation]]
             Map of paths to violations.
+        num_fixable : int
+            The number of fixable issues.
         """
 
         n_screens = len(results)
@@ -380,6 +394,9 @@ class PhoebusLinter:
         total_issues = sum(len(issues) for issues in results.values())
         if total_issues > 0:
             print(f"Found {total_issues} total issues.")
+
+        if num_fixable > 0:
+            print(f"{num_fixable} issues are fixable. Re-run with --fix to automatically apply fixes.")
 
     def did_linting_pass(self, results: dict[Path, list[RuleViolation]]) -> bool:
         """Determine if the linting results pass based on the configured fail severity.

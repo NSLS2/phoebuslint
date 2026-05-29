@@ -5,7 +5,8 @@ from pathlib import Path
 import yaml
 
 from ._version import __version__
-from .linter import PhoebusLinter, SeverityLevel
+from . import rules  # noqa: F401 - import to register rule subclasses
+from .linter import PhoebusLinter, SeverityLevel, get_all_rule_codes
 
 from .log import logger
 
@@ -46,6 +47,15 @@ def main():
         help="Set the fail severity level",
         default="WARNING",
     )
+    all_rule_codes = get_all_rule_codes()
+    parser.add_argument(
+        "--filter",
+        type=str,
+        nargs="+",
+        choices=["S101"] + all_rule_codes,
+        metavar="RULE_CODE",
+        help="Filter linting rules by their codes."
+    )
 
     args = parser.parse_args()
     if args.debug:
@@ -66,22 +76,25 @@ def main():
         linter_config["ignore_paths"] = args.ignore_paths
     if args.fail_severity:
         linter_config["fail_severity"] = SeverityLevel[args.fail_severity]
+    if args.filter:
+        linter_config["disabled_rule_codes"] = [code for code in all_rule_codes if code not in args.filter]
 
     linter = PhoebusLinter(**linter_config)
 
     logger.info(f"PhoebusLint version: {__version__}")
 
     results = {}
+    num_fixable = 0
     for path_str in args.paths:
         path = Path(path_str)
         if path.is_file() and path.suffix == ".bob":
-            results.update(linter.lint_file(path))
+            results, num_fixable = linter.lint_file(path, visited=results, num_fixable=num_fixable)
         elif path.is_dir():
-            results.update(linter.lint_directory(path))
+            results, num_fixable = linter.lint_directory(path)
         else:
             logger.warning(f"Skipping invalid path: {path}")
 
-    linter.display_linting_report(results)
+    linter.display_linting_report(results, num_fixable)
     if linter.did_linting_pass(results):
         exit(0)
     else:
