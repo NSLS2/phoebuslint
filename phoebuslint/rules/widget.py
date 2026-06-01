@@ -7,8 +7,8 @@ from phoebusgen.v4.properties import (
     OpenWebpageAction,
 )
 from phoebusgen.v4.properties.behavior import HasActionsRulesAndScripts
-from phoebusgen.v4.properties.widget import HasName
-from phoebusgen.v4.properties.display import HasBackgroundColor, HasForegroundColor, HasItemsFromPV, HasPVName
+from phoebusgen.v4.properties.widget import HasName, HasPVName
+from phoebusgen.v4.properties.display import HasVisible, HasForegroundColor, HasBackgroundColor, HasItemsFromPV
 from phoebusgen.v4.widgets import (
     ActionButton,
     EmbeddedDisplay,
@@ -436,3 +436,37 @@ class FGAndBGColorAreIdentical(LintRule):
                 )
 
         return rule_violations
+
+class WidgetNotVisibleAndNoRules(FixableLintRule):
+    """Rule that checks if a widget is not visible and doesn't have a visibility rule."""
+
+    rule_code = "W118"
+    description = "Widget is not visible and doesn't have a visibility rule."
+
+    @classmethod
+    def get_not_visible_widgets(cls, screen: Screen) -> list[Widget]:
+        not_visible_widgets = []
+        for widget in get_all_widgets(screen):
+            if not isinstance(widget, HasVisible):
+                continue
+            if widget.visible is False and len(widget.rules) == 0:
+                not_visible_widgets.append(widget)
+            elif not widget.visible:
+                if not any([rule.prop_id == "visible" for rule in widget.rules]):
+                    not_visible_widgets.append(widget)
+        return not_visible_widgets
+
+    @classmethod
+    def check(cls, screen: Screen) -> list[RuleViolation]:
+        rule_violations = []
+        for widget in cls.get_not_visible_widgets(screen):
+            rule_violations.append(
+                cls.rule_violation_factory(screen=screen, widget=widget)
+            )
+
+        return rule_violations
+
+    @classmethod
+    def fix(cls, screen: Screen) -> None:
+        for widget in cls.get_not_visible_widgets(screen):
+            screen.remove_widget(widget)
