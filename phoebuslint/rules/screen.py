@@ -122,3 +122,32 @@ class ScreenHeightOrWidthZeroOrNegative(LintRule):
         if screen.height <= 0 or screen.width <= 0:
             return [cls.rule_violation_factory(screen=screen)]
         return []
+
+
+class ExcessiveScreenHeightOrWidth(FixableLintRule):
+    """Rule that checks if screen width or height is significantly past the outermost widget"""
+
+    rule_code = "S109"
+    description = "Screen width or height is significantly past the outermost widget."
+
+    @classmethod
+    def get_outermost_widget_bounds(cls, screen: Screen) -> tuple[int, int]:
+        max_x = max((widget.x + widget.width for widget in screen.get_widgets()), default=0)
+        max_y = max((widget.y + widget.height for widget in screen.get_widgets()), default=0)
+        return max_x, max_y
+    
+    @classmethod
+    def check(cls, screen: Screen) -> list[RuleViolation]:
+        rule_violations = []
+        max_x, max_y = cls.get_outermost_widget_bounds(screen)
+        if screen.width > max_x + 10:
+            rule_violations.append(cls.rule_violation_factory(screen=screen, details=f"Screen width is significantly past the outermost widget. Width: {screen.width}, Max X: {max_x}"))
+        if screen.height > max_y + 10:
+            rule_violations.append(cls.rule_violation_factory(screen=screen, details=f"Screen height is significantly past the outermost widget. Height: {screen.height}, Max Y: {max_y}"))
+        return rule_violations
+
+    @classmethod
+    def fix(cls, screen: Screen) -> None:
+        max_x, max_y = cls.get_outermost_widget_bounds(screen)
+        screen.width = max_x + 10
+        screen.height = max_y + 10

@@ -37,7 +37,7 @@ class WidgetHeightOrWidthZeroOrNegative(LintRule):
         return rule_violations
 
 
-class WidgetOutOfBounds(LintRule):
+class WidgetOutOfBounds(FixableLintRule):
     """Rule that checks for widgets that are out of screen bounds."""
 
     rule_code = "W102"
@@ -57,24 +57,13 @@ class WidgetOutOfBounds(LintRule):
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
         return rule_violations
-
-
-class ActionButtonWithNoActions(LintRule):
-    """Rule that checks for ActionButton widgets that have no actions defined."""
-
-    rule_code = "W103"
-    description = "ActionButton has no actions defined."
-
+    
     @classmethod
-    def check(cls, screen: Screen) -> list[RuleViolation]:
-        rule_violations = []
-        for widget in get_all_widgets(screen):
-            if isinstance(widget, ActionButton) and len(widget.actions) == 0:
-                rule_violations.append(
-                    cls.rule_violation_factory(screen=screen, widget=widget)
-                )
-        return rule_violations
-
+    def fix(cls, screen: Screen) -> None:
+        max_widget_x = max([widget.x + widget.width for widget in screen.widgets])
+        max_widget_y = max([widget.y + widget.height for widget in screen.widgets])
+        screen.width = max(screen.width, max_widget_x + 10)
+        screen.height = max(screen.height, max_widget_y + 10)
 
 class EmptyLabel(LintRule):
     """Rule that checks for Label widgets that have empty text."""
@@ -86,7 +75,7 @@ class EmptyLabel(LintRule):
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
         for widget in get_all_widgets(screen):
-            if isinstance(widget, Label) and widget.text.strip() == "":
+            if isinstance(widget, Label) and widget.text.strip() == "" and not any(rule.prop_id == "text" for rule in widget.rules):
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
@@ -99,20 +88,43 @@ class LabelWithExcessiveTextLength(LintRule):
     rule_code = "W105"
     description = "Label has excessively long text."
 
+    # Approximate character width as a fraction of font size for proportional sans-serif fonts.
+    # Based on typical glyph advance widths in Liberation Sans / Arial.
+    _CHAR_WIDTH: dict[str, float] = {}
+    for _c in "ilI|!.,;:'`":
+        _CHAR_WIDTH[_c] = 0.17
+    for _c in "fjrt()-[]{}/ \t1":
+        _CHAR_WIDTH[_c] = 0.26
+    for _c in "abcdeghknopqsuvxyz023456789":
+        _CHAR_WIDTH[_c] = 0.38
+    for _c in "ABCDEFGHJKLNOPQRSTUVXYZ":
+        _CHAR_WIDTH[_c] = 0.47
+    for _c in "mw":
+        _CHAR_WIDTH[_c] = 0.51
+    for _c in "MW":
+        _CHAR_WIDTH[_c] = 0.60
+    _DEFAULT_CHAR_WIDTH = 0.38
+
+    @classmethod
+    def _estimate_text_width(cls, text: str, font_size: float) -> float:
+        """Estimate pixel width of text based on per-character weights and font size."""
+        total_width_factor = sum(cls._CHAR_WIDTH.get(c, cls._DEFAULT_CHAR_WIDTH) for c in text)
+        return total_width_factor * font_size * 1.33
+
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
         for widget in get_all_widgets(screen):
             if not isinstance(widget, Label):
                 continue
-            # Assumes typical DPI of 96 and average character width of font size * 0.5
-            # TODO: Make this configurable
+            estimated_text_width = cls._estimate_text_width(widget.text, widget.font.size)
             if (
-                len(widget.text) * widget.font.size * 0.5 * 96 / 72 > widget.width
-                and not widget.auto_size
+                estimated_text_width > widget.width
+                and not widget.auto_size # Ignore auto sized widgets
+                and not widget.wrap_words # Ignore widgets that wrap words
             ):
                 rule_violations.append(
-                    cls.rule_violation_factory(screen=screen, widget=widget)
+                    cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Text: {widget.text} (Widget Width: {widget.width}, Estimated Text Width: {estimated_text_width})")
                 )
         return rule_violations
 

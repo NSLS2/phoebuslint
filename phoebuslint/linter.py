@@ -255,6 +255,7 @@ class PhoebusLinter:
                 ]
             if violations:
                 if issubclass(rule_cls, FixableLintRule) and self._enable_auto_fixes:
+                    logger.info(f"Fixing rule: {rule_cls.__name__}")
                     rule_cls.fix(screen)
                     # In some cases, a screen will just be deleted by the fix (i.e. empty screen)
                     # Don't bother to keep linting this screen after that.
