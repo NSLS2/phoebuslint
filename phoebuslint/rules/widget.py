@@ -7,8 +7,13 @@ from phoebusgen.v4.properties import (
     OpenWebpageAction,
 )
 from phoebusgen.v4.properties.behavior import HasActionsRulesAndScripts
+from phoebusgen.v4.properties.display import (
+    HasBackgroundColor,
+    HasForegroundColor,
+    HasItemsFromPV,
+    HasVisible,
+)
 from phoebusgen.v4.properties.widget import HasName, HasPVName
-from phoebusgen.v4.properties.display import HasVisible, HasForegroundColor, HasBackgroundColor, HasItemsFromPV
 from phoebusgen.v4.widgets import (
     ActionButton,
     EmbeddedDisplay,
@@ -17,7 +22,13 @@ from phoebusgen.v4.widgets import (
     Widget,
 )
 
-from ..linter import FixableLintRule, LintRule, RuleViolation, SeverityLevel, get_all_widgets
+from ..linter import (
+    FixableLintRule,
+    LintRule,
+    RuleViolation,
+    SeverityLevel,
+    get_all_widgets,
+)
 
 
 class WidgetHeightOrWidthZeroOrNegative(LintRule):
@@ -57,13 +68,14 @@ class WidgetOutOfBounds(FixableLintRule):
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
         return rule_violations
-    
+
     @classmethod
     def fix(cls, screen: Screen) -> None:
         max_widget_x = max([widget.x + widget.width for widget in screen.widgets])
         max_widget_y = max([widget.y + widget.height for widget in screen.widgets])
         screen.width = max(screen.width, max_widget_x + 10)
         screen.height = max(screen.height, max_widget_y + 10)
+
 
 class EmptyLabel(LintRule):
     """Rule that checks for Label widgets that have empty text."""
@@ -75,7 +87,11 @@ class EmptyLabel(LintRule):
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
         for widget in get_all_widgets(screen):
-            if isinstance(widget, Label) and widget.text.strip() == "" and not any(rule.prop_id == "text" for rule in widget.rules):
+            if (
+                isinstance(widget, Label)
+                and widget.text.strip() == ""
+                and not any(rule.prop_id == "text" for rule in widget.rules)
+            ):
                 rule_violations.append(
                     cls.rule_violation_factory(screen=screen, widget=widget)
                 )
@@ -88,8 +104,8 @@ class LabelWithExcessiveTextLength(LintRule):
     rule_code = "W105"
     description = "Label has excessively long text."
 
-    # Approximate character width as a fraction of font size for proportional sans-serif fonts.
-    # Based on typical glyph advance widths in Liberation Sans / Arial.
+    # Approximate character width as a fraction of font size for proportional
+    # sans-serif fonts. Based on typical glyph advance widths in Liberation Sans.
     _CHAR_WIDTH: dict[str, float] = {}
     for _c in "ilI|!.,;:'`":
         _CHAR_WIDTH[_c] = 0.17
@@ -108,7 +124,9 @@ class LabelWithExcessiveTextLength(LintRule):
     @classmethod
     def _estimate_text_width(cls, text: str, font_size: float) -> float:
         """Estimate pixel width of text based on per-character weights and font size."""
-        total_width_factor = sum(cls._CHAR_WIDTH.get(c, cls._DEFAULT_CHAR_WIDTH) for c in text)
+        total_width_factor = sum(
+            cls._CHAR_WIDTH.get(c, cls._DEFAULT_CHAR_WIDTH) for c in text
+        )
         return total_width_factor * font_size * 1.33
 
     @classmethod
@@ -117,14 +135,22 @@ class LabelWithExcessiveTextLength(LintRule):
         for widget in get_all_widgets(screen):
             if not isinstance(widget, Label):
                 continue
-            estimated_text_width = cls._estimate_text_width(widget.text, widget.font.size)
+            estimated_text_width = cls._estimate_text_width(
+                widget.text, widget.font.size
+            )
             if (
                 estimated_text_width > widget.width
-                and not widget.auto_size # Ignore auto sized widgets
-                and not widget.wrap_words # Ignore widgets that wrap words
+                and not widget.auto_size  # Ignore auto sized widgets
+                and not widget.wrap_words  # Ignore widgets that wrap words
             ):
                 rule_violations.append(
-                    cls.rule_violation_factory(screen=screen, widget=widget, details=f"{cls.description} Text: {widget.text} (Widget Width: {widget.width}, Estimated Text Width: {estimated_text_width})")
+                    cls.rule_violation_factory(
+                        screen=screen,
+                        widget=widget,
+                        details=cls.description
+                        + f"Text: {widget.text} (Widget Width: {widget.width},"
+                        + f" Estimated Text Width: {estimated_text_width})",
+                    )
                 )
         return rule_violations
 
@@ -413,7 +439,7 @@ class DuplicateWidgetNames(FixableLintRule):
                 seen_names.add(widget.name)
 
         return rule_violations
-    
+
     @classmethod
     def fix(cls, screen: Screen) -> None:
         seen_names: dict[str, int] = {}
@@ -441,16 +467,27 @@ class FGAndBGColorAreIdentical(LintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in (w for w in get_all_widgets(screen) if isinstance(w, HasForegroundColor) and isinstance(w, HasBackgroundColor)):
+        for widget in (
+            w
+            for w in get_all_widgets(screen)
+            if isinstance(w, HasForegroundColor) and isinstance(w, HasBackgroundColor)
+        ):
             if widget.foreground_color == widget.background_color:
                 rule_violations.append(
-                    cls.rule_violation_factory(screen=screen, widget=widget, details=cls.description + f" (foreground: {widget.foreground_color}, background: {widget.background_color})")
+                    cls.rule_violation_factory(
+                        screen=screen,
+                        widget=widget,
+                        details=cls.description
+                        + f" (foreground: {widget.foreground_color},"
+                        + f" background: {widget.background_color})",
+                    )
                 )
 
         return rule_violations
 
+
 class WidgetNotVisibleAndNoRules(FixableLintRule):
-    """Rule that checks if a widget is not visible and doesn't have a visibility rule."""
+    """Check if a widget is not visible and doesn't have a visibility rule."""
 
     rule_code = "W118"
     description = "Widget is not visible and doesn't have a visibility rule."
@@ -464,7 +501,7 @@ class WidgetNotVisibleAndNoRules(FixableLintRule):
             if widget.visible is False and len(widget.rules) == 0:
                 not_visible_widgets.append(widget)
             elif not widget.visible:
-                if not any([rule.prop_id == "visible" for rule in widget.rules]):
+                if not any(rule.prop_id == "visible" for rule in widget.rules):
                     not_visible_widgets.append(widget)
         return not_visible_widgets
 

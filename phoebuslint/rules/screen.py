@@ -93,6 +93,7 @@ class DefaultTitleSet(FixableLintRule):
         if screen.bob_file is not None:
             screen.name = os.path.splitext(os.path.basename(screen.bob_file))[0]
 
+
 class EmptyScreen(FixableLintRule):
     """Rule that checks if a screen is empty (has no widgets)."""
 
@@ -125,25 +126,41 @@ class ScreenHeightOrWidthZeroOrNegative(LintRule):
 
 
 class ExcessiveScreenHeightOrWidth(FixableLintRule):
-    """Rule that checks if screen width or height is significantly past the outermost widget"""
+    """Check if screen width or height is significantly past the outer widget"""
 
     rule_code = "S109"
     description = "Screen width or height is significantly past the outermost widget."
 
     @classmethod
     def get_outermost_widget_bounds(cls, screen: Screen) -> tuple[int, int]:
-        max_x = max((widget.x + widget.width for widget in screen.get_widgets()), default=0)
-        max_y = max((widget.y + widget.height for widget in screen.get_widgets()), default=0)
+        max_x = max(
+            (widget.x + widget.width for widget in screen.get_widgets()), default=0
+        )
+        max_y = max(
+            (widget.y + widget.height for widget in screen.get_widgets()), default=0
+        )
         return max_x, max_y
-    
+
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
         max_x, max_y = cls.get_outermost_widget_bounds(screen)
         if screen.width > max_x + 10:
-            rule_violations.append(cls.rule_violation_factory(screen=screen, details=f"Screen width is significantly past the outermost widget. Width: {screen.width}, Max X: {max_x}"))
+            rule_violations.append(
+                cls.rule_violation_factory(
+                    screen=screen,
+                    details="Screen width is significantly past the outer widget."
+                    + f" Width: {screen.width}, Max X: {max_x}",
+                )
+            )
         if screen.height > max_y + 10:
-            rule_violations.append(cls.rule_violation_factory(screen=screen, details=f"Screen height is significantly past the outermost widget. Height: {screen.height}, Max Y: {max_y}"))
+            rule_violations.append(
+                cls.rule_violation_factory(
+                    screen=screen,
+                    details="Screen height is significantly past the outer widget."
+                    + f" Height: {screen.height}, Max Y: {max_y}",
+                )
+            )
         return rule_violations
 
     @classmethod

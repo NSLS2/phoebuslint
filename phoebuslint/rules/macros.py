@@ -4,9 +4,9 @@ from phoebusgen.v4 import Screen
 
 from ..linter import LintRule, RuleViolation, SeverityLevel
 
-
 # Phoebus builtin macros. Not all-encompassing.
 PHOEBUS_BUILTIN_MACROS = {"pv_name", "pv_value", "DID", "DNAME", "WID", "HEI", "SHOW"}
+
 
 class UndefinedMacrosInScreenTransition(LintRule):
     """Rule that checks if screen transitions pass all macros required by the target."""

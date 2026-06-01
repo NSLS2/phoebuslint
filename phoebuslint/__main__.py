@@ -4,10 +4,9 @@ from pathlib import Path
 
 import yaml
 
-from ._version import __version__
 from . import rules  # noqa: F401 - import to register rule subclasses
+from ._version import __version__
 from .linter import PhoebusLinter, SeverityLevel, get_all_rule_codes
-
 from .log import logger
 
 
@@ -28,8 +27,15 @@ def main():
         default=["."],
         help="Paths to .bob files or directories to lint recursively",
     )
-    parser.add_argument("-d", "--debug", action="store_true", help="Enable debug logging.")
-    parser.add_argument("-q", "--quiet", action="store_true", help="Enable quiet mode, only show warning and above log messages and linting report.")
+    parser.add_argument(
+        "-d", "--debug", action="store_true", help="Enable debug logging."
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Enable quiet mode, only show warning and above logs and linting report.",
+    )
 
     parser.add_argument(
         "-v", "--version", action="version", version=f"PhoebusLint {__version__}"
@@ -39,7 +45,12 @@ def main():
         action="store_true",
         help="Enable automatic fixes for certain linting issues",
     )
-    parser.add_argument("-i", "--ignore-paths", nargs="+", help="List of paths to ignore during linting.")
+    parser.add_argument(
+        "-i",
+        "--ignore-paths",
+        nargs="+",
+        help="List of paths to ignore during linting.",
+    )
     parser.add_argument(
         "--fail-severity",
         type=str,
@@ -54,7 +65,7 @@ def main():
         nargs="+",
         choices=["S101"] + all_rule_codes,
         metavar="RULE_CODE",
-        help="Filter linting rules by their codes."
+        help="Filter linting rules by their codes.",
     )
 
     args = parser.parse_args()
@@ -77,7 +88,9 @@ def main():
     if args.fail_severity:
         linter_config["fail_severity"] = SeverityLevel[args.fail_severity]
     if args.filter:
-        linter_config["disabled_rule_codes"] = [code for code in all_rule_codes if code not in args.filter]
+        linter_config["disabled_rule_codes"] = [
+            code for code in all_rule_codes if code not in args.filter
+        ]
 
     linter = PhoebusLinter(**linter_config)
 
@@ -88,7 +101,9 @@ def main():
     for path_str in args.paths:
         path = Path(path_str)
         if path.is_file() and path.suffix == ".bob":
-            results, num_fixable = linter.lint_file(path, visited=results, num_fixable=num_fixable)
+            results, num_fixable = linter.lint_file(
+                path, visited=results, num_fixable=num_fixable
+            )
         elif path.is_dir():
             results, num_fixable = linter.lint_directory(path)
         else:

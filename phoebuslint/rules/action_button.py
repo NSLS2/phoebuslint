@@ -23,7 +23,9 @@ class ActionButtonHasNoActions(FixableLintRule):
 
     @classmethod
     def fix(cls, screen: Screen) -> None:
-        for widget in (w for w in screen.get_all_widgets() if isinstance(w, ActionButton)):
+        for widget in (
+            w for w in screen.get_all_widgets() if isinstance(w, ActionButton)
+        ):
             if not widget.actions:
                 if widget.parent:
                     logger.info(f"Removing button {widget.name} with no actions")
@@ -43,6 +45,10 @@ class ActionButtonHasTooManyActions(LintRule):
         for widget in screen.get_widgets_by_type(ActionButton):
             if len(widget.actions) > 15:
                 rule_violations.append(
-                    cls.rule_violation_factory(screen=screen, widget=widget, details=cls.description + f" ({len(widget.actions)} actions)")
+                    cls.rule_violation_factory(
+                        screen=screen,
+                        widget=widget,
+                        details=cls.description + f" ({len(widget.actions)} actions)",
+                    )
                 )
         return rule_violations

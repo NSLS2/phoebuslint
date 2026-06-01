@@ -1,3 +1,7 @@
+from .action_button import (
+    ActionButtonHasNoActions,
+    ActionButtonHasTooManyActions,
+)
 from .macros import UndefinedMacrosInScreenTransition
 from .screen import (
     DefaultTitleSet,
@@ -18,11 +22,6 @@ from .widget import (
     OpenWebpageActionInvalidUrl,
     WidgetHeightOrWidthZeroOrNegative,
     WidgetOutOfBounds,
-)
-
-from .action_button import (
-    ActionButtonHasNoActions,
-    ActionButtonHasTooManyActions,
 )
 
 __all__ = [

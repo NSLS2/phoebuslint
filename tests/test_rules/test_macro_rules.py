@@ -1,7 +1,4 @@
-from pathlib import Path
-
 from phoebusgen.v4 import Screen
-
 from phoebuslint.rules.macros import UndefinedMacrosInScreenTransition
 
 

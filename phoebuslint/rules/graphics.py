@@ -1,8 +1,7 @@
-from ..log import logger
-from ..linter import LintRule, RuleViolation, RuleViolationFactory, FixableLintRule
 from phoebusgen.v4 import Screen
-from phoebusgen.v4.widgets import Arc, Rectangle, Ellipse, Image, Polygon, Polyline
-from phoebusgen.v4.properties.display import HasTransparent, HasLineWidth
+from phoebusgen.v4.properties.display import HasLineWidth, HasTransparent
+
+from ..linter import LintRule, RuleViolation
 
 
 class TransparentGraphicWithZeroLineWidth(LintRule):
