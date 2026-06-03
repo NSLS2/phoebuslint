@@ -1,15 +1,12 @@
-import inspect
-
 import pytest
 from phoebusgen.v4 import Screen
-from phoebuslint import LintRule
+from phoebuslint.linter import get_all_rules
 
 
 @pytest.fixture
 def all_rule_classes():
     """Fixture to get all LintRule subclasses."""
-    all_subcls_incl_abc = LintRule.__subclasses__()
-    return {cls for cls in all_subcls_incl_abc if not inspect.isabstract(cls)}
+    return set(get_all_rules())
 
 
 @pytest.fixture

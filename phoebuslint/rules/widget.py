@@ -5,12 +5,14 @@ from phoebusgen.v4.properties import (
     OpenDisplayAction,
     OpenFileAction,
     OpenWebpageAction,
+    GroupStyle,
 )
 from phoebusgen.v4.properties.behavior import HasActionsRulesAndScripts
 from phoebusgen.v4.properties.display import (
     HasBackgroundColor,
     HasForegroundColor,
     HasItemsFromPV,
+    HasTransparent,
     HasVisible,
 )
 from phoebusgen.v4.properties.widget import HasName, HasPVName
@@ -20,6 +22,7 @@ from phoebusgen.v4.widgets import (
     Label,
     TextUpdate,
     Widget,
+    Group,
 )
 
 from ..linter import (
@@ -27,8 +30,32 @@ from ..linter import (
     LintRule,
     RuleViolation,
     SeverityLevel,
+    UnsafeFixableLintRule,
     get_all_widgets,
 )
+from ..log import logger
+
+
+def _find_closest_bob_match(
+    filename: str, origin: Path, bob_file_tree: list[Path]
+) -> Path | None:
+    """Find the closest .bob file with the given filename relative to origin.
+
+    If multiple files match the filename, return the one with the shortest
+    relative path from the origin directory.
+    """
+    from os.path import relpath
+
+    candidates = [p for p in bob_file_tree if p.name == filename]
+    if not candidates:
+        return None
+
+    def relative_path_length(candidate: Path) -> int:
+        rel_str = relpath(candidate.resolve(), origin.resolve())
+        return len(Path(rel_str).parts)
+
+    best = min(candidates, key=relative_path_length)
+    return Path(relpath(best.resolve(), origin.resolve()))
 
 
 class WidgetHeightOrWidthZeroOrNegative(LintRule):
@@ -65,37 +92,51 @@ class WidgetOutOfBounds(FixableLintRule):
                 or widget.y + widget.height > screen.height
             ):
                 rule_violations.append(
-                    cls.rule_violation_factory(screen=screen, widget=widget)
+                    cls.rule_violation_factory(screen=screen, widget=widget, fixable=True)
                 )
         return rule_violations
 
     @classmethod
-    def fix(cls, screen: Screen) -> None:
+    def fix(cls, violation: RuleViolation) -> bool:
+        screen = violation.screen
         max_widget_x = max([widget.x + widget.width for widget in screen.widgets])
         max_widget_y = max([widget.y + widget.height for widget in screen.widgets])
         screen.width = max(screen.width, max_widget_x + 10)
         screen.height = max(screen.height, max_widget_y + 10)
+        return True
 
 
-class EmptyLabel(LintRule):
+class EmptyLabel(FixableLintRule):
     """Rule that checks for Label widgets that have empty text."""
 
     rule_code = "W104"
     description = "Label has empty text."
 
     @classmethod
+    def get_empty_labels(cls, screen: Screen) -> list[Label]:
+        return [
+            widget
+            for widget in get_all_widgets(screen)
+            if isinstance(widget, Label)
+            and widget.text.strip() == ""
+            and not any(rule.prop_id == "text" for rule in widget.rules)
+        ]
+
+    @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
-        for widget in get_all_widgets(screen):
-            if (
-                isinstance(widget, Label)
-                and widget.text.strip() == ""
-                and not any(rule.prop_id == "text" for rule in widget.rules)
-            ):
-                rule_violations.append(
-                    cls.rule_violation_factory(screen=screen, widget=widget)
-                )
+        for label in cls.get_empty_labels(screen):
+            rule_violations.append(
+                cls.rule_violation_factory(screen=screen, widget=label, fixable=True)
+            )
         return rule_violations
+
+    @classmethod
+    def fix(cls, violation: RuleViolation) -> bool:
+        if violation.widget is None:
+            return False
+        violation.screen.remove_widget(violation.widget)
+        return True
 
 
 class LabelWithExcessiveTextLength(LintRule):
@@ -192,7 +233,7 @@ class EmbeddedDisplayNoFilePathSet(LintRule):
         return rule_violations
 
 
-class EmbeddedDisplayPathDoesNotExist(LintRule):
+class EmbeddedDisplayPathDoesNotExist(UnsafeFixableLintRule):
     """Rule that checks if an EmbeddedDisplay widget has a path that does not exist."""
 
     rule_code = "W108"
@@ -203,9 +244,10 @@ class EmbeddedDisplayPathDoesNotExist(LintRule):
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
         for widget in get_all_widgets(screen):
-            if not isinstance(widget, EmbeddedDisplay):
+            if not isinstance(widget, EmbeddedDisplay) or widget.file is None:
                 continue
-            path = Path(widget.file)
+
+            path = widget.file
             if not path.is_absolute() and screen.bob_file:
                 path = Path(screen.bob_file).parent / path
             if not path.exists() or not path.is_file():
@@ -214,10 +256,32 @@ class EmbeddedDisplayPathDoesNotExist(LintRule):
                         screen=screen,
                         widget=widget,
                         details=f"{cls.description} Path: {widget.file}",
+                        fixable=True,
                     )
                 )
 
         return rule_violations
+
+    @classmethod
+    def fix(cls, violation: RuleViolation) -> bool:
+        if not cls._linter or not cls._linter._bob_file_tree:
+            return False
+
+        screen = violation.screen
+        widget = violation.widget
+        if not isinstance(widget, EmbeddedDisplay) or widget.file is None:
+            return False
+
+        origin = Path(screen.bob_file).parent if screen.bob_file else Path.cwd()
+        filename = Path(widget.file).name
+        new_path = _find_closest_bob_match(filename, origin, cls._linter._bob_file_tree)
+        if new_path is not None:
+            logger.info(
+                f"Repointing {widget.file} -> {new_path} in {screen.bob_file}"
+            )
+            widget.file = new_path
+            return True
+        return False
 
 
 class EmbeddedDisplayPathIsOpiFile(LintRule):
@@ -236,9 +300,9 @@ class EmbeddedDisplayPathIsOpiFile(LintRule):
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
         for widget in get_all_widgets(screen):
-            if not isinstance(widget, EmbeddedDisplay):
+            if not isinstance(widget, EmbeddedDisplay) or widget.file is None:
                 continue
-            path = Path(widget.file)
+            path = widget.file
             if not path.is_absolute() and screen.bob_file:
                 path = Path(screen.bob_file).parent / path
             if path.suffix.lower() == ".opi":
@@ -274,7 +338,7 @@ class OpenDisplayActionPathNotSet(LintRule):
         return rule_violations
 
 
-class OpenDisplayActionPathDoesNotExist(LintRule):
+class OpenDisplayActionPathDoesNotExist(UnsafeFixableLintRule):
     """Rule that checks if an OpenDisplayAction has a path that does not exist."""
 
     rule_code = "W111"
@@ -288,8 +352,8 @@ class OpenDisplayActionPathDoesNotExist(LintRule):
             if not isinstance(widget, HasActionsRulesAndScripts):
                 continue
             for action in widget.actions:
-                if isinstance(action, OpenDisplayAction):
-                    path = Path(action.file)
+                if isinstance(action, OpenDisplayAction) and action.file is not None:
+                    path = action.file
                     if not path.is_absolute() and screen.bob_file:
                         path = Path(screen.bob_file).parent / path
                     if not path.exists() or not path.is_file():
@@ -298,10 +362,38 @@ class OpenDisplayActionPathDoesNotExist(LintRule):
                                 screen=screen,
                                 widget=widget,
                                 details=f"{cls.description} Path: {action.file}",
+                                fixable=True,
                             )
                         )
 
         return rule_violations
+
+    @classmethod
+    def fix(cls, violation: RuleViolation) -> bool:
+        if not cls._linter or not cls._linter._bob_file_tree:
+            return False
+
+        screen = violation.screen
+        widget = violation.widget
+        origin = Path(screen.bob_file).parent if screen.bob_file else Path.cwd()
+        if not isinstance(widget, HasActionsRulesAndScripts):
+            return False
+
+        # Find the action matching this violation's details
+        for action in widget.actions:
+            if not isinstance(action, OpenDisplayAction) or action.file is None:
+                continue
+            if f"Path: {action.file}" not in violation.details:
+                continue
+            filename = Path(action.file).name
+            new_path = _find_closest_bob_match(filename, origin, cls._linter._bob_file_tree)
+            if new_path is not None:
+                logger.info(
+                    f"Repointing {action.file} -> {new_path} in {screen.bob_file}"
+                )
+                action.file = new_path
+                return True
+        return False
 
 
 class OpenDisplayActionPathIsOpiFile(LintRule):
@@ -320,8 +412,8 @@ class OpenDisplayActionPathIsOpiFile(LintRule):
             if not isinstance(widget, HasActionsRulesAndScripts):
                 continue
             for action in widget.actions:
-                if isinstance(action, OpenDisplayAction):
-                    path = Path(action.file)
+                if isinstance(action, OpenDisplayAction) and action.file is not None:
+                    path = action.file
                     if not path.is_absolute() and screen.bob_file:
                         path = Path(screen.bob_file).parent / path
                     if path.suffix.lower() == ".opi":
@@ -336,7 +428,7 @@ class OpenDisplayActionPathIsOpiFile(LintRule):
         return rule_violations
 
 
-class OpenFileActionPathDoesNotExist(LintRule):
+class OpenFileActionPathDoesNotExist(UnsafeFixableLintRule):
     """Rule that checks if an OpenFileAction has a path that does not exist."""
 
     rule_code = "W113"
@@ -361,10 +453,39 @@ class OpenFileActionPathDoesNotExist(LintRule):
                                 screen=screen,
                                 widget=widget,
                                 details=f"{cls.description} Path: {action.file}",
+                                fixable=True,
                             )
                         )
 
         return rule_violations
+
+    @classmethod
+    def fix(cls, violation: RuleViolation) -> bool:
+        if not cls._linter or not cls._linter._bob_file_tree:
+            return False
+
+        screen = violation.screen
+        widget = violation.widget
+        origin = Path(screen.bob_file).parent if screen.bob_file else Path.cwd()
+        if widget is None:
+            return False
+
+        for action in widget.actions:
+            if not isinstance(action, OpenFileAction):
+                continue
+            if action.file is None:
+                continue
+            if f"Path: {action.file}" not in violation.details:
+                continue
+            filename = Path(action.file).name
+            new_path = _find_closest_bob_match(filename, origin, cls._linter._bob_file_tree)
+            if new_path is not None:
+                logger.info(
+                    f"Repointing {action.file} -> {new_path} in {screen.bob_file}"
+                )
+                action.file = new_path
+                return True
+        return False
 
 
 class OpenWebpageActionInvalidUrl(LintRule):
@@ -433,7 +554,7 @@ class DuplicateWidgetNames(FixableLintRule):
                 continue
             if widget.name in seen_names:
                 rule_violations.append(
-                    cls.rule_violation_factory(screen=screen, widget=widget)
+                    cls.rule_violation_factory(screen=screen, widget=widget, fixable=True)
                 )
             else:
                 seen_names.add(widget.name)
@@ -441,21 +562,24 @@ class DuplicateWidgetNames(FixableLintRule):
         return rule_violations
 
     @classmethod
-    def fix(cls, screen: Screen) -> None:
-        seen_names: dict[str, int] = {}
-        for widget in get_all_widgets(screen):
-            if not isinstance(widget, HasName):
-                continue
-            if widget.name in seen_names:
-                seen_names[widget.name] += 1
-                new_name = f"{widget.name}_{seen_names[widget.name]}"
-                while new_name in seen_names:
-                    seen_names[widget.name] += 1
-                    new_name = f"{widget.name}_{seen_names[widget.name]}"
-                widget.name = new_name
-                seen_names[new_name] = 0
-            else:
-                seen_names[widget.name] = 0
+    def fix(cls, violation: RuleViolation) -> bool:
+        screen = violation.screen
+        widget = violation.widget
+        if widget is None:
+            return False
+        # Collect all names in the screen to avoid collisions
+        existing_names = {
+            w.name for w in get_all_widgets(screen)
+            if isinstance(w, HasName) and w is not widget
+        }
+        base_name = widget.name
+        counter = 1
+        new_name = f"{base_name}_{counter}"
+        while new_name in existing_names:
+            counter += 1
+            new_name = f"{base_name}_{counter}"
+        widget.name = new_name
+        return True
 
 
 class FGAndBGColorAreIdentical(LintRule):
@@ -472,7 +596,14 @@ class FGAndBGColorAreIdentical(LintRule):
             for w in get_all_widgets(screen)
             if isinstance(w, HasForegroundColor) and isinstance(w, HasBackgroundColor)
         ):
-            if widget.foreground_color == widget.background_color:
+            fg = widget.foreground_color
+            # For Group widgets with a TITLE_BAR style, use the line color as the background color (foreground = text color, line = title bar color)
+            bg = widget.background_color if not (isinstance(widget, Group) and widget.style == GroupStyle.TITLE_BAR) else widget.line_color
+            if fg == bg:
+                if isinstance(widget, HasTransparent) and widget.transparent:
+                    continue
+                if isinstance(widget, Group) and widget.style == GroupStyle.NONE:
+                    continue
                 rule_violations.append(
                     cls.rule_violation_factory(
                         screen=screen,
@@ -510,12 +641,16 @@ class WidgetNotVisibleAndNoRules(FixableLintRule):
         rule_violations = []
         for widget in cls.get_not_visible_widgets(screen):
             rule_violations.append(
-                cls.rule_violation_factory(screen=screen, widget=widget)
+                cls.rule_violation_factory(screen=screen, widget=widget, fixable=True)
             )
 
         return rule_violations
 
     @classmethod
-    def fix(cls, screen: Screen) -> None:
-        for widget in cls.get_not_visible_widgets(screen):
-            screen.remove_widget(widget)
+    def fix(cls, violation: RuleViolation) -> bool:
+        screen = violation.screen
+        widget = violation.widget
+        if widget is None:
+            return False
+        screen.remove_widget(widget)
+        return True

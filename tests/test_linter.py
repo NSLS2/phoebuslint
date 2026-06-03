@@ -119,18 +119,11 @@ def test_base_linter_configuration(all_rule_classes):
     assert linter._fail_severity == SeverityLevel.WARNING
 
 
-def test_linter_configuration_from_yaml(tmp_path, all_rule_classes):
-    yaml_content = """
-    fail_severity: ERROR
-    disabled_rule_codes:
-      - S102
-      - S103
-    """
-    yaml_file = tmp_path / "config.yaml"
-    with open(yaml_file, "w") as f:
-        f.write(yaml_content)
-
-    linter = PhoebusLinter.from_yaml(yaml_file)
+def test_linter_configuration_from_kwargs(all_rule_classes):
+    linter = PhoebusLinter(
+        fail_severity=SeverityLevel.ERROR,
+        disabled_rule_codes=["S102", "S103"],
+    )
     assert linter._fail_severity == SeverityLevel.ERROR
     assert len(linter._enabled_rules) == len(all_rule_classes) - 2
     assert all(
@@ -201,7 +194,7 @@ def test_display_linting_report(capsys):
             details="Test error violation",
         ),
     ]
-    linter.display_linting_report({Path("test_screen.bob"): violations})
+    linter.display_linting_report({Path("test_screen.bob"): violations}, 0)
     captured = capsys.readouterr()
     assert "PhoebusLint scanned 1 screens,  1 with violations." in captured.out
     assert "# PhoebusLint Rule Violation Report" in captured.out

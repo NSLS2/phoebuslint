@@ -7,7 +7,8 @@ from phoebusgen.v4.properties.behavior import (
 )
 from phoebusgen.v4.properties.widget import HasFile
 
-from ..linter import LintRule, RuleViolation
+from ..linter import LintRule, RuleViolation, UnsafeFixableLintRule
+from ..log import logger
 
 
 def check_path_exists_relative_to_screen(screen: Screen, file_path: Path) -> bool:
@@ -18,6 +19,50 @@ def check_path_exists_relative_to_screen(screen: Screen, file_path: Path) -> boo
         relative_to = Path(screen.bob_file).parent
     full_path = relative_to / file_path
     return full_path.is_file()
+
+
+def find_closest_match(
+    filename: str, origin: Path, bob_file_tree: list[Path]
+) -> Path | None:
+    """Find the closest .bob file with the given filename relative to origin.
+
+    If multiple files match the filename, return the one with the shortest
+    relative path from the origin directory.
+
+    Parameters
+    ----------
+    filename : str
+        The filename to search for (e.g. "motor.bob").
+    origin : Path
+        The directory of the screen file that references this path.
+    bob_file_tree : list[Path]
+        All .bob files available in the project tree.
+
+    Returns
+    -------
+    Path | None
+        The relative path from origin to the closest match, or None if not found.
+    """
+    candidates = [p for p in bob_file_tree if p.name == filename]
+    if not candidates:
+        return None
+
+    # Find the candidate with the shortest relative path from origin
+    def relative_path_length(candidate: Path) -> int:
+        try:
+            rel = candidate.resolve().relative_to(origin.resolve())
+            return len(rel.parts)
+        except ValueError:
+            # Not a subpath, compute via os.path.relpath
+            from os.path import relpath
+
+            rel_str = relpath(candidate.resolve(), origin.resolve())
+            return len(Path(rel_str).parts)
+
+    best = min(candidates, key=relative_path_length)
+    from os.path import relpath
+
+    return Path(relpath(best.resolve(), origin.resolve()))
 
 
 class FilePropertyPathDoesNotExist(LintRule):
@@ -42,7 +87,7 @@ class FilePropertyPathDoesNotExist(LintRule):
         return violations
 
 
-class OpenFileActionPathDoesNotExist(LintRule):
+class OpenFileActionPathDoesNotExist(UnsafeFixableLintRule):
     """Rule that checks if file paths in OpenFileAction actions exist."""
 
     rule_code = "P102"
@@ -68,10 +113,40 @@ class OpenFileActionPathDoesNotExist(LintRule):
                                 screen,
                                 widget,  # type: ignore
                                 details=f"{cls.description} Path: {action.file}",
+                                fixable=True,
                             )
                         )
 
         return violations
+
+    @classmethod
+    def fix(cls, violation: RuleViolation) -> bool:
+        if not cls._linter or not cls._linter._bob_file_tree:
+            return False
+
+        screen = violation.screen
+        widget = violation.widget
+        origin = Path(screen.bob_file).parent if screen.bob_file else Path.cwd()
+
+        if widget is None or not isinstance(widget, HasActionsRulesAndScripts):
+            return False
+
+        for action in widget.actions:
+            if not isinstance(action, (OpenFileAction, OpenDisplayAction)):
+                continue
+            if action.file is None:
+                continue
+            if f"Path: {action.file}" not in violation.details:
+                continue
+            filename = Path(action.file).name
+            new_path = find_closest_match(filename, origin, cls._linter._bob_file_tree)
+            if new_path is not None:
+                logger.info(
+                    f"Repointing {action.file} -> {new_path} in {screen.bob_file}"
+                )
+                action.file = new_path
+                return True
+        return False
 
 
 class OpenDisplayActionPathIsNotABobfile(LintRule):
@@ -124,7 +199,7 @@ class ScriptFilePathDoesNotExist(LintRule):
         return violations
 
 
-class EmbeddedDisplayPathDoesNotExist(LintRule):
+class EmbeddedDisplayPathDoesNotExist(UnsafeFixableLintRule):
     """Rule that checks if an EmbeddedDisplay widget references a non-existent file."""
 
     rule_code = "P105"
@@ -146,9 +221,35 @@ class EmbeddedDisplayPathDoesNotExist(LintRule):
                         screen,
                         embedded_display,  # type: ignore
                         details=f"{cls.description} Path: {embedded_display.file}",
+                        fixable=True,
                     )
                 )
         return violations
+
+    @classmethod
+    def fix(cls, violation: RuleViolation) -> bool:
+        if not cls._linter or not cls._linter._bob_file_tree:
+            return False
+
+        screen = violation.screen
+        widget = violation.widget
+        origin = Path(screen.bob_file).parent if screen.bob_file else Path.cwd()
+
+        if widget is None or not isinstance(widget, HasFile):
+            return False
+
+        if widget.file is None:
+            return True        # File not set is not an error
+
+        filename = widget.file.name
+        new_path = find_closest_match(filename, origin, cls._linter._bob_file_tree)
+        if new_path is not None:
+            logger.info(
+                f"Repointing {widget.file} -> {new_path} in {screen.bob_file}"
+            )
+            widget.file = new_path
+            return True
+        return False
 
 
 class EmbeddedDisplayPathIsNotABobfile(LintRule):

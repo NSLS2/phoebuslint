@@ -56,16 +56,19 @@ class RuleViolation:
         The property element where the violation was found.
     details : str, default = ""
         Additional details about the violation.
+    fixable : bool, default = False
+        Whether this violation can be automatically fixed.
     """
 
     rule_name: str
     rule_code: str
     rule_severity: SeverityLevel
-    screen: Screen | Path
+    screen: Screen
     widget: Widget | None = None
     property: str | None = None
     property_element: str | None = None
     details: str = ""
+    fixable: bool = False
 
     def __str__(self) -> str:
         screen_path = (
@@ -96,6 +99,7 @@ class RuleViolationFactory:
         property: str | None = None,
         property_element: str | None = None,
         details: str | None = None,
+        fixable: bool = False,
     ) -> RuleViolation:
         """Factory method to create a RuleViolation instance for this rule.
 
@@ -105,6 +109,7 @@ class RuleViolationFactory:
             property (str | None): Property name where the violation was found.
             property_element (str | None): Property elem where the violation was found.
             details (str | None): Additional details about the violation.
+            fixable (bool): Whether this violation can be automatically fixed.
         Returns:
             RuleViolation: The created RuleViolation instance.
         """
@@ -117,11 +122,14 @@ class RuleViolationFactory:
             property=property,
             property_element=property_element,
             details=details if details else cls.description,
+            fixable=fixable,
         )
 
 
 class LintRule(RuleViolationFactory, ABC):
     """Abstract base class for stateless linting rules."""
+
+    _linter: "PhoebusLinter | None" = None
 
     @classmethod
     @abstractmethod
@@ -146,13 +154,32 @@ class FixableLintRule(LintRule, ABC):
 
     @classmethod
     @abstractmethod
-    def fix(cls, screen: Screen) -> None:
-        """Attempt to fix the issue covered by this rule on the given screen.
+    def fix(cls, violation: RuleViolation) -> bool:
+        """Attempt to fix a single violation.
 
-        Args:
-            screen (Screen): The screen to attempt to fix.
+        The violation already contains references to the screen and widget.
+        Access cls._linter for the parent linter instance (e.g. bob_file_tree).
+
+        Parameters
+        ----------
+        violation : RuleViolation
+            The violation to fix.
+
+        Returns
+        -------
+        bool
+            True if the violation was fixed, False otherwise.
         """
         ...
+
+
+class UnsafeFixableLintRule(FixableLintRule, ABC):
+    """Abstract base class for fixable rules whose fixes may introduce breaking changes.
+
+    Unsafe fixes require the --unsafe-fixes flag to be applied.
+    """
+
+    ...
 
 
 def get_all_rules() -> list[type[LintRule]]:
@@ -164,7 +191,12 @@ def get_all_rules() -> list[type[LintRule]]:
         for rule in FixableLintRule.__subclasses__()
         if not inspect.isabstract(rule)
     ]
-    return basic_rules + fixable_rules
+    unsafe_fixable_rules = [
+        rule
+        for rule in UnsafeFixableLintRule.__subclasses__()
+        if not inspect.isabstract(rule)
+    ]
+    return basic_rules + fixable_rules + unsafe_fixable_rules
 
 
 def get_all_rule_codes() -> list[str]:
@@ -180,7 +212,9 @@ class PhoebusLinter:
         fail_severity: SeverityLevel = SeverityLevel.WARNING,
         disabled_rule_codes: list[str] | None = None,
         enable_fixes: bool = False,
+        enable_unsafe_fixes: bool = False,
         ignore_paths: list[str] | None = None,
+        show_counts: bool = False,
     ):
         self._enabled_rules = {
             rule
@@ -190,11 +224,27 @@ class PhoebusLinter:
         logger.debug(f"Disabled rules: {disabled_rule_codes}")
         logger.debug(f"Fail severity: {fail_severity.name}")
         logger.debug(f"Enable automatic fixes: {enable_fixes}")
+        logger.debug(f"Enable unsafe fixes: {enable_unsafe_fixes}")
         logger.debug(f"Ignore paths: {ignore_paths}")
+        logger.debug(f"Show counts: {show_counts}")
 
         self._fail_severity = fail_severity
         self._enable_auto_fixes = enable_fixes
+        self._enable_unsafe_fixes = enable_unsafe_fixes
         self._ignore_paths = ignore_paths or []
+        self._show_counts = show_counts
+        self._bob_file_tree: list[Path] = []
+        LintRule._linter = self
+
+    def build_bob_file_tree(self, root: Path) -> None:
+        """Build a list of all .bob files available from the given root directory down.
+
+        Parameters
+        ----------
+        root : Path
+            The root directory to search for .bob files.
+        """
+        self._bob_file_tree = sorted(root.rglob("*.bob"))
 
     def lint_screen(
         self,
@@ -261,18 +311,33 @@ class PhoebusLinter:
                     )
                 ]
             if violations:
-                if issubclass(rule_cls, FixableLintRule) and self._enable_auto_fixes:
-                    logger.info(f"Fixing rule: {rule_cls.__name__}")
-                    rule_cls.fix(screen)
-                    # In some cases, a screen will just be deleted by the fix.
-                    # Don't bother to keep linting this screen after that.
-                    if os.path.exists(screen.bob_file):
-                        screen.write_screen()
-                    else:
+                should_fix = (
+                    issubclass(rule_cls, FixableLintRule)
+                    and self._enable_auto_fixes
+                    and (
+                        not issubclass(rule_cls, UnsafeFixableLintRule)
+                        or self._enable_unsafe_fixes
+                    )
+                )
+                if should_fix:
+                    screen_deleted = False
+                    for violation in violations:
+                        if not violation.fixable:
+                            visited[file_path].append(violation)
+                            continue
+                        logger.info(f"Fixing violation: {violation}")
+                        fixed = rule_cls.fix(violation)  # type: ignore
+                        if not fixed:
+                            visited[file_path].append(violation)
+                        # In some cases, a screen will just be deleted by the fix.
+                        if not os.path.exists(screen.bob_file):
+                            screen_deleted = True
+                            break
+                    if screen_deleted:
                         break
+                    screen.write_screen()
                 else:
-                    if issubclass(rule_cls, FixableLintRule):
-                        num_fixable += len(violations)
+                    num_fixable += sum(1 for v in violations if v.fixable)
                     visited[file_path].extend(violations)
 
         for screen_transition in screen.get_linked_screens():
@@ -333,9 +398,8 @@ class PhoebusLinter:
                 f"File {file_path} does not exist or is not a .bob file."
             )
 
+        screen = Screen(f_name=str(file_path))
         try:
-            screen = Screen(f_name=str(file_path))
-
             # If a screen has widgets that are not valid phoebus XML this will raise.
             screen.get_all_widgets()
         except Exception as e:
@@ -345,7 +409,7 @@ class PhoebusLinter:
                     rule_name="ScreenNotParsable",
                     rule_code="S101",
                     rule_severity=SeverityLevel.ERROR,
-                    screen=file_path,
+                    screen=screen,
                     details=f"Error parsing .bob file: {e}",
                 )
             ]
@@ -399,8 +463,8 @@ class PhoebusLinter:
         # Get count of how many times each rule was violated
         for violations in results.values():
             for violation in violations:
-                violations_count[violation.rule_name] = (
-                    violations_count.get(violation.rule_name, 0) + 1
+                violations_count[violation.rule_name + f" [{violation.rule_code}]"] = (
+                    violations_count.get(violation.rule_name + f" [{violation.rule_code}]", 0) + 1
                 )
 
         for violations in results.values():
@@ -427,6 +491,12 @@ class PhoebusLinter:
         total_issues = sum(len(issues) for issues in results.values())
         if total_issues > 0:
             print(f"Found {total_issues} total issues.")
+
+        if self._show_counts:
+            print()
+            for rule_name, count in violations_count.items():
+                print(f"  {rule_name}: {count}")
+            print()
 
         if num_fixable > 0:
             print(

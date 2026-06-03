@@ -43,6 +43,7 @@ phoebuslint path/to/screen.bob path/to/directory/
 | `-i`, `--ignore-paths` | Paths to ignore during linting |
 | `--fail-severity` | Set minimum severity to fail (`INFO`, `WARNING`, `ERROR`). Default: `WARNING` |
 | `--filter` | Only run specific rules by code |
+| `--show-counts` | Show how many issues were found for each error code |
 | `-v`, `--version` | Show version |
 
 ### Examples
@@ -144,19 +145,19 @@ disabled_rule_codes:
 [uv](https://docs.astral.sh/uv/) is recommended for development:
 
 ```bash
-uv pip install -e ".[dev]"
+uv sync
 ```
 
 Or with pip:
 
 ```bash
-pip install -e ".[dev]"
+pip install -e .[dev]
 ```
 
 Run tests:
 
 ```bash
-pytest
+uv run pytest
 ```
 
 ## Requirements

@@ -46,6 +46,11 @@ def main():
         help="Enable automatic fixes for certain linting issues",
     )
     parser.add_argument(
+        "--unsafe-fixes",
+        action="store_true",
+        help="Enable unsafe automatic fixes that may introduce breaking changes",
+    )
+    parser.add_argument(
         "-i",
         "--ignore-paths",
         nargs="+",
@@ -67,6 +72,11 @@ def main():
         metavar="RULE_CODE",
         help="Filter linting rules by their codes.",
     )
+    parser.add_argument(
+        "--show-counts",
+        action="store_true",
+        help="Show counts of each rule violation.",
+    )
 
     args = parser.parse_args()
     if args.debug:
@@ -83,6 +93,9 @@ def main():
 
     if args.fix:
         linter_config["enable_fixes"] = True
+    if args.unsafe_fixes:
+        linter_config["enable_fixes"] = True
+        linter_config["enable_unsafe_fixes"] = True
     if args.ignore_paths:
         linter_config["ignore_paths"] = args.ignore_paths
     if args.fail_severity:
@@ -91,10 +104,15 @@ def main():
         linter_config["disabled_rule_codes"] = [
             code for code in all_rule_codes if code not in args.filter
         ]
+    if args.show_counts:
+        linter_config["show_counts"] = True
 
     linter = PhoebusLinter(**linter_config)
 
     logger.info(f"PhoebusLint version: {__version__}")
+
+    # Build the bob file tree from cwd for path resolution
+    linter.build_bob_file_tree(Path.cwd())
 
     results = {}
     num_fixable = 0

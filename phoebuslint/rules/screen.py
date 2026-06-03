@@ -85,13 +85,16 @@ class DefaultTitleSet(FixableLintRule):
     def check(cls, screen: Screen) -> list[RuleViolation]:
         # Phoebusgen will set the screen name to "Display" if no name is found
         if screen.name == "Display":
-            return [cls.rule_violation_factory(screen)]
+            return [cls.rule_violation_factory(screen, fixable=True)]
         return []
 
     @classmethod
-    def fix(cls, screen: Screen) -> None:
+    def fix(cls, violation: RuleViolation) -> bool:
+        screen = violation.screen
         if screen.bob_file is not None:
             screen.name = os.path.splitext(os.path.basename(screen.bob_file))[0]
+            return True
+        return False
 
 
 class EmptyScreen(FixableLintRule):
@@ -103,13 +106,16 @@ class EmptyScreen(FixableLintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         if len(screen.get_widgets()) == 0:
-            return [cls.rule_violation_factory(screen=screen)]
+            return [cls.rule_violation_factory(screen=screen, fixable=True)]
         return []
 
     @classmethod
-    def fix(cls, screen: Screen) -> None:
+    def fix(cls, violation: RuleViolation) -> bool:
+        screen = violation.screen
         if screen.bob_file is not None:
             os.remove(screen.bob_file)
+            return True
+        return False
 
 
 class ScreenHeightOrWidthZeroOrNegative(LintRule):
@@ -130,6 +136,7 @@ class ExcessiveScreenHeightOrWidth(FixableLintRule):
 
     rule_code = "S109"
     description = "Screen width or height is significantly past the outermost widget."
+    violation_threshold = 10
 
     @classmethod
     def get_outermost_widget_bounds(cls, screen: Screen) -> tuple[int, int]:
@@ -145,26 +152,30 @@ class ExcessiveScreenHeightOrWidth(FixableLintRule):
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations = []
         max_x, max_y = cls.get_outermost_widget_bounds(screen)
-        if screen.width > max_x + 10:
+        if screen.width > max_x + cls.violation_threshold:
             rule_violations.append(
                 cls.rule_violation_factory(
                     screen=screen,
                     details="Screen width is significantly past the outer widget."
                     + f" Width: {screen.width}, Max X: {max_x}",
+                    fixable=True,
                 )
             )
-        if screen.height > max_y + 10:
+        if screen.height > max_y + cls.violation_threshold:
             rule_violations.append(
                 cls.rule_violation_factory(
                     screen=screen,
                     details="Screen height is significantly past the outer widget."
                     + f" Height: {screen.height}, Max Y: {max_y}",
+                    fixable=True,
                 )
             )
         return rule_violations
 
     @classmethod
-    def fix(cls, screen: Screen) -> None:
+    def fix(cls, violation: RuleViolation) -> bool:
+        screen = violation.screen
         max_x, max_y = cls.get_outermost_widget_bounds(screen)
-        screen.width = max_x + 10
-        screen.height = max_y + 10
+        screen.width = max_x + cls.violation_threshold
+        screen.height = max_y + cls.violation_threshold
+        return True

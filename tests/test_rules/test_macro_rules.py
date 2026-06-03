@@ -71,7 +71,7 @@ def test_violation_when_macros_missing(tmp_path):
     assert len(violations) == 1
     assert "Y" in violations[0].details
     assert "Z" in violations[0].details
-    assert violations[0].rule_code == "M001"
+    assert violations[0].rule_code == "M101"
 
 
 def test_source_macros_count_as_available(tmp_path):

@@ -4,10 +4,6 @@ from phoebusgen.v4 import Screen
 
 from ..linter import LintRule, RuleViolation, SeverityLevel
 
-# Phoebus builtin macros. Not all-encompassing.
-PHOEBUS_BUILTIN_MACROS = {"pv_name", "pv_value", "DID", "DNAME", "WID", "HEI", "SHOW"}
-
-
 class UndefinedMacrosInScreenTransition(LintRule):
     """Rule that checks if screen transitions pass all macros required by the target."""
 
@@ -19,9 +15,12 @@ class UndefinedMacrosInScreenTransition(LintRule):
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations: list[RuleViolation] = []
 
+        if screen.bob_file is None:
+            return []
+
         nav_graph = screen.build_navigation_graph()
         source_path = Path(screen.bob_file)
-        source_used_macros = screen.get_used_macros()
+        source_used_macros, source_default_macros = screen.get_used_macros()
 
         for edge in nav_graph.transitions:
             if Path(edge.source) != source_path:
@@ -36,13 +35,10 @@ class UndefinedMacrosInScreenTransition(LintRule):
             except Exception:
                 continue
 
-            target_required_macros = target_screen.get_used_macros()
+            target_required_macros, target_default_macros = target_screen.get_used_macros()
             available_macros = source_used_macros | set(edge.macros.keys())
 
-            # pv_name and pv_value are special macros often used in tooltips
-            available_macros |= PHOEBUS_BUILTIN_MACROS
-
-            undefined_macros = target_required_macros - available_macros
+            undefined_macros = target_required_macros - available_macros - target_default_macros
 
             if undefined_macros:
                 sorted_undefined = sorted(undefined_macros)
