@@ -63,7 +63,7 @@ class RuleViolation:
     rule_name: str
     rule_code: str
     rule_severity: SeverityLevel
-    screen: Screen
+    screen: Screen | Path
     widget: Widget | None = None
     property: str | None = None
     property_element: str | None = None
@@ -517,9 +517,33 @@ class PhoebusLinter:
             print()
 
         if num_fixable > 0:
-            print(
-                f"{num_fixable} issue{'s are' if num_fixable > 1 else ' is'} fixable. Re-run with --fix to automatically apply fixes."  # noqa: E501
+            unsafe_codes = {
+                rule.rule_code
+                for rule in get_all_rules()
+                if issubclass(rule, UnsafeFixableLintRule)
+            }
+            n_safe = sum(
+                1
+                for violations in results.values()
+                for v in violations
+                if v.fixable and v.rule_code not in unsafe_codes
             )
+            n_unsafe = sum(
+                1
+                for violations in results.values()
+                for v in violations
+                if v.fixable and v.rule_code in unsafe_codes
+            )
+            if n_safe > 0:
+                print(
+                    f"{n_safe} issue{'s are' if n_safe > 1 else ' is'} fixable. "
+                    "Re-run with --fix to automatically apply fixes."
+                )
+            if n_unsafe > 0:
+                print(
+                    f"{n_unsafe} issue{'s are' if n_unsafe > 1 else ' is'} fixable "
+                    "with unsafe fixes. Re-run with --unsafe-fixes to apply them."
+                )
 
     def did_linting_pass(self, results: dict[Path, list[RuleViolation]]) -> bool:
         """Determine if the linting results pass based on the configured fail severity.

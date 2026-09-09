@@ -209,3 +209,57 @@ def test_display_linting_report(capsys):
     assert "Total Warnings: 1" in captured.out
     assert "Total Errors: 1" in captured.out
     assert "Found 2 total issues." in captured.out
+
+
+def test_display_linting_report_distinguishes_safe_and_unsafe_fixes(capsys):
+    linter = PhoebusLinter()
+    violations = [
+        RuleViolation(
+            rule_name="EmptyLabel",
+            rule_code="W104",  # safe fixable rule
+            rule_severity=SeverityLevel.WARNING,
+            screen=Path("test_screen.bob"),
+            details="Label has empty text.",
+            fixable=True,
+        ),
+        RuleViolation(
+            rule_name="OpenDisplayActionPathIsOpiFile",
+            rule_code="W112",  # unsafe fixable rule
+            rule_severity=SeverityLevel.WARNING,
+            screen=Path("test_screen.bob"),
+            details="Path points to OPI file.",
+            fixable=True,
+        ),
+    ]
+    linter.display_linting_report({Path("test_screen.bob"): violations}, 2)
+    captured = capsys.readouterr()
+    assert (
+        "1 issue is fixable. Re-run with --fix to automatically apply fixes."
+        in captured.out
+    )
+    assert (
+        "1 issue is fixable with unsafe fixes. "
+        "Re-run with --unsafe-fixes to apply them." in captured.out
+    )
+
+
+def test_display_linting_report_only_safe_fixes(capsys):
+    linter = PhoebusLinter()
+    violations = [
+        RuleViolation(
+            rule_name="EmptyLabel",
+            rule_code="W104",
+            rule_severity=SeverityLevel.WARNING,
+            screen=Path("test_screen.bob"),
+            details="Label has empty text.",
+            fixable=True,
+        ),
+    ]
+    linter.display_linting_report({Path("test_screen.bob"): violations}, 1)
+    captured = capsys.readouterr()
+    assert (
+        "1 issue is fixable. Re-run with --fix to automatically apply fixes."
+        in captured.out
+    )
+    assert "unsafe fixes" not in captured.out
+
