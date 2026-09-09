@@ -396,7 +396,7 @@ class OpenDisplayActionPathDoesNotExist(UnsafeFixableLintRule):
         return False
 
 
-class OpenDisplayActionPathIsOpiFile(LintRule):
+class OpenDisplayActionPathIsOpiFile(UnsafeFixableLintRule):
     """Checks if OpenDisplayAction has a path that points to an OPI file."""
 
     rule_code = "W112"
@@ -422,10 +422,35 @@ class OpenDisplayActionPathIsOpiFile(LintRule):
                                 screen=screen,
                                 widget=widget,
                                 details=f"{cls.description} Path: {action.file}",
+                                fixable=path.with_suffix(".bob").is_file(),
                             )
                         )
 
         return rule_violations
+
+    @classmethod
+    def fix(cls, violation: RuleViolation) -> bool:
+        screen = violation.screen
+        widget = violation.widget
+        if not isinstance(widget, HasActionsRulesAndScripts):
+            return False
+
+        for action in widget.actions:
+            if not isinstance(action, OpenDisplayAction) or action.file is None:
+                continue
+            if f"Path: {action.file}" not in violation.details:
+                continue
+            resolved = action.file
+            if not resolved.is_absolute() and screen.bob_file:
+                resolved = Path(screen.bob_file).parent / resolved
+            if resolved.with_suffix(".bob").is_file():
+                new_path = action.file.with_suffix(".bob")
+                logger.info(
+                    f"Repointing {action.file} -> {new_path} in {screen.bob_file}"
+                )
+                action.file = new_path
+                return True
+        return False
 
 
 class OpenFileActionPathDoesNotExist(UnsafeFixableLintRule):

@@ -434,6 +434,24 @@ class PhoebusLinter:
             )
         return visited, num_fixable
 
+    def display_rules(self) -> None:
+        """Print all enabled rules and their descriptions."""
+        enabled = sorted(self._enabled_rules, key=lambda rule: rule.rule_code)
+        print(f"{BLUE}# PhoebusLint Rules ({len(enabled)} enabled){RESET}\n")
+        for rule in enabled:
+            color = RED if rule.rule_severity >= SeverityLevel.ERROR else YELLOW
+            if issubclass(rule, UnsafeFixableLintRule):
+                fixable = "fixable (unsafe)"
+            elif issubclass(rule, FixableLintRule):
+                fixable = "fixable"
+            else:
+                fixable = "not fixable"
+            print(
+                f"  {color}{rule.rule_code}{RESET} "
+                f"[{rule.rule_severity.name}] [{fixable}] {rule.description}"
+            )
+        print()
+
     def display_linting_report(
         self, results: dict[Path, list[RuleViolation]], num_fixable: int
     ) -> None:

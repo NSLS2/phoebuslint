@@ -2,9 +2,31 @@ from phoebusgen.v4 import Screen
 from phoebusgen.v4.widgets import Label
 from phoebuslint.rules.widget import (
     DuplicateWidgetNames,
+    OpenDisplayActionPathIsOpiFile,
     WidgetHeightOrWidthZeroOrNegative,
     WidgetOutOfBounds,
 )
+
+
+_OPI_ACTION_XML = (
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    "<display>\n"
+    "  <name>Test</name>\n"
+    "  <width>800</width>\n"
+    "  <height>600</height>\n"
+    '  <widget type="action_button">\n'
+    "    <name>Action Button</name>\n"
+    "    <actions>\n"
+    '      <action type="open_display">\n'
+    "        <file>target.opi</file>\n"
+    "        <target>replace</target>\n"
+    "      </action>\n"
+    "    </actions>\n"
+    "    <x>0</x><y>0</y><width>100</width><height>30</height>\n"
+    "  </widget>\n"
+    "</display>\n"
+)
+
 
 
 def test_widget_height_or_width_zero_or_negative_rule(sample_empty_screen: Screen):
@@ -103,3 +125,33 @@ def test_duplicate_widget_names_fix_no_false_collisions(sample_empty_screen: Scr
         DuplicateWidgetNames.fix(v)
     names = [w.name for w in sample_empty_screen.get_all_widgets()]
     assert len(names) == len(set(names)), f"Names not unique after fix: {names}"
+
+
+def test_open_display_action_opi_not_fixable_without_bob(
+    tmp_path, screen_given_xml_factory
+):
+    """Violation is reported but not fixable when no sibling .bob file exists."""
+    screen = screen_given_xml_factory(_OPI_ACTION_XML)
+
+    violations = OpenDisplayActionPathIsOpiFile.check(screen)
+    assert len(violations) == 1
+    assert violations[0].fixable is False
+
+
+def test_open_display_action_opi_fixable_switches_to_bob(
+    tmp_path, screen_given_xml_factory
+):
+    """When a sibling .bob file exists, the fix repoints the action to it."""
+    (tmp_path / "target.bob").write_text("")
+    screen = screen_given_xml_factory(_OPI_ACTION_XML)
+
+    violations = OpenDisplayActionPathIsOpiFile.check(screen)
+    assert len(violations) == 1
+    assert violations[0].fixable is True
+
+    assert OpenDisplayActionPathIsOpiFile.fix(violations[0]) is True
+
+    action = screen.get_widgets()[0].actions[0]
+    assert str(action.file) == "target.bob"
+    assert len(OpenDisplayActionPathIsOpiFile.check(screen)) == 0
+

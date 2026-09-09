@@ -24,7 +24,7 @@ def main():
     parser.add_argument(
         "paths",
         nargs="*",
-        default=["."],
+        default=None,
         help="Paths to .bob files or directories to lint recursively",
     )
     parser.add_argument(
@@ -73,9 +73,22 @@ def main():
         help="Filter linting rules by their codes.",
     )
     parser.add_argument(
+        "--filter-out",
+        type=str,
+        nargs="+",
+        choices=["S101"] + all_rule_codes,
+        metavar="RULE_CODE",
+        help="Disable the linting rules with the given codes.",
+    )
+    parser.add_argument(
         "--show-counts",
         action="store_true",
         help="Show counts of each rule violation.",
+    )
+    parser.add_argument(
+        "--show-rules",
+        action="store_true",
+        help="Print all enabled rules and their descriptions, then lint if paths given.",
     )
 
     args = parser.parse_args()
@@ -104,6 +117,10 @@ def main():
         linter_config["disabled_rule_codes"] = [
             code for code in all_rule_codes if code not in args.filter
         ]
+    if args.filter_out:
+        disabled = set(linter_config.get("disabled_rule_codes", []))
+        disabled.update(args.filter_out)
+        linter_config["disabled_rule_codes"] = list(disabled)
     if args.show_counts:
         linter_config["show_counts"] = True
 
@@ -111,12 +128,17 @@ def main():
 
     logger.info(f"PhoebusLint version: {__version__}")
 
+    if args.show_rules:
+        linter.display_rules()
+        if not args.paths:
+            exit(0)
+
     # Build the bob file tree from cwd for path resolution
     linter.build_bob_file_tree(Path.cwd())
 
     results = {}
     num_fixable = 0
-    for path_str in args.paths:
+    for path_str in args.paths or ["."]:
         path = Path(path_str)
         if path.is_file() and path.suffix == ".bob":
             results, num_fixable = linter.lint_file(
