@@ -13,6 +13,31 @@ class UndefinedMacrosInScreenTransition(LintRule):
     rule_severity = SeverityLevel.ERROR
 
     @classmethod
+    def _collect_cycle_macros(cls, start: Path, visited: set[Path]) -> set[str]:
+        """Pool the required macros of every screen reachable from ``start``.
+
+        Follows navigation links depth-first, recording each visited screen in
+        ``visited`` (so callers can detect whether a particular screen lies on
+        the traversal) and accumulating the macros each screen references
+        without a default.
+        """
+        start = start.resolve()
+        if start in visited or not start.is_file():
+            return set()
+        visited.add(start)
+
+        try:
+            screen = Screen(f_name=str(start))
+        except Exception:
+            return set()
+
+        required_macros, _ = screen.get_used_macros()
+        for transition in screen.get_linked_screens():
+            next_path = start.parent / transition.target
+            required_macros |= cls._collect_cycle_macros(next_path, visited)
+        return required_macros
+
+    @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         rule_violations: list[RuleViolation] = []
 
@@ -40,6 +65,17 @@ class UndefinedMacrosInScreenTransition(LintRule):
                 target_screen.get_used_macros()
             )
             available_macros = source_used_macros | set(edge.macros.keys())
+
+            # Circular transition dependency: if the target can navigate back to
+            # the source, the two screens belong to the same navigation cycle.
+            # Macros required anywhere in that cycle are assumed to be supplied by
+            # whatever external launcher enters the cycle (the same root-node
+            # assumption applied to a group of mutually-linked screens), so treat
+            # every macro referenced within the cycle as available.
+            cycle_visited: set[Path] = set()
+            cycle_macros = cls._collect_cycle_macros(target_path, cycle_visited)
+            if source_path.resolve() in cycle_visited:
+                available_macros |= cycle_macros
 
             undefined_macros = (
                 target_required_macros - available_macros - target_default_macros
