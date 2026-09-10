@@ -250,6 +250,7 @@ class WidgetFontTwoLargeForHeight(FixableLintRule):
                         details=cls.description
                         + f"(Widget Height: {widget.height},"
                         + f" Font Size: {widget.font.size})",
+                        fixable=True,
                     )
                 )
         return rule_violations
