@@ -223,11 +223,11 @@ class WidgetFontTooLargeForHeight(FixableLintRule):
 
     rule_code = "W119"
     rule_severity = SeverityLevel.WARNING
-    description = "Font size of Label or TextUpdate widget is too large for its height."
+    description = "Font size of widget is too large given its height."
 
     # Rendered line height exceeds the nominal font size; this factor approximates
     # that overhead for Liberation Sans, matching the width model used by W105.
-    _LINE_HEIGHT_FACTOR = 1.15
+    _LINE_HEIGHT_FACTOR = 1.14
     # Total vertical padding (top + bottom) reserved inside the widget.
     _VERTICAL_PADDING = 0
     _WIDGET_TYPES = (Label, TextUpdate, TextEntry, ActionButton)
