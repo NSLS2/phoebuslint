@@ -226,9 +226,9 @@ class WidgetFontTwoLargeForHeight(FixableLintRule):
 
     # Rendered line height exceeds the nominal font size; this factor approximates
     # that overhead for Liberation Sans, matching the width model used by W105.
-    _LINE_HEIGHT_FACTOR = 1.33
+    _LINE_HEIGHT_FACTOR = 1.15
     # Total vertical padding (top + bottom) reserved inside the widget.
-    _VERTICAL_PADDING = 2
+    _VERTICAL_PADDING = 0
     _WIDGET_TYPES = (Label, TextUpdate, TextEntry, ActionButton)
 
     @classmethod
