@@ -20,6 +20,7 @@ from phoebusgen.v4.widgets import (
     ActionButton,
     EmbeddedDisplay,
     Label,
+    TextEntry,
     TextUpdate,
     Widget,
     Group,
@@ -98,7 +99,7 @@ class WidgetOutOfBounds(FixableLintRule):
 
     @classmethod
     def fix(cls, violation: RuleViolation) -> bool:
-        screen = violation.screen
+        screen = violation.get_screen()
         widget = violation.widget
         fixed = False
 
@@ -154,7 +155,7 @@ class EmptyLabel(FixableLintRule):
     def fix(cls, violation: RuleViolation) -> bool:
         if violation.widget is None:
             return False
-        violation.screen.remove_widget(violation.widget)
+        violation.get_screen().remove_widget(violation.widget)
         return True
 
 
@@ -213,6 +214,57 @@ class LabelWithExcessiveTextLength(LintRule):
                     )
                 )
         return rule_violations
+
+
+class WidgetFontTwoLargeForHeight(FixableLintRule):
+    """Rule that checks if the font size of a Label or TextUpdate widget is too large for its height."""
+
+    rule_code = "W119"
+    rule_severity = SeverityLevel.WARNING
+    description = "Font size of Label or TextUpdate widget is too large for its height."
+
+    # Rendered line height exceeds the nominal font size; this factor approximates
+    # that overhead for Liberation Sans, matching the width model used by W105.
+    _LINE_HEIGHT_FACTOR = 1.33
+    # Total vertical padding (top + bottom) reserved inside the widget.
+    _VERTICAL_PADDING = 2
+    _WIDGET_TYPES = (Label, TextUpdate, TextEntry, ActionButton)
+
+    @classmethod
+    def _max_font_size(cls, height: float) -> int:
+        """Largest font size whose rendered line height fits within the widget."""
+        usable_height = height - cls._VERTICAL_PADDING
+        return max(1, int(usable_height / cls._LINE_HEIGHT_FACTOR))
+
+    @classmethod
+    def check(cls, screen: Screen) -> list[RuleViolation]:
+        rule_violations = []
+        for widget in get_all_widgets(screen):
+            if not isinstance(widget, cls._WIDGET_TYPES):
+                continue
+            if widget.font.size > cls._max_font_size(widget.height):
+                rule_violations.append(
+                    cls.rule_violation_factory(
+                        screen=screen,
+                        widget=widget,
+                        details=cls.description
+                        + f"(Widget Height: {widget.height},"
+                        + f" Font Size: {widget.font.size})",
+                    )
+                )
+        return rule_violations
+
+    @classmethod
+    def fix(cls, violation: RuleViolation) -> bool:
+        widget = violation.widget
+        if not isinstance(widget, cls._WIDGET_TYPES):
+            return False
+        max_size = cls._max_font_size(widget.height)
+        if widget.font.size > max_size:
+            widget.font.size = max_size
+            return True
+        return False
+
 
 
 class TextUpdateWithNoDefinedPV(LintRule):

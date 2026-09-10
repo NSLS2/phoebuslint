@@ -98,6 +98,7 @@ phoebuslint -i build/ archive/ .
 | W112 | OpenDisplayAction path points to OPI file | WARNING | No |
 | W113 | OpenFileAction path does not exist | WARNING | No |
 | W114 | OpenWebpageAction has an invalid URL | WARNING | No |
+| W119 | Label/TextUpdate font size too large for widget height | WARNING | Yes |
 
 ### Macro Rules (`M1xx`)
 

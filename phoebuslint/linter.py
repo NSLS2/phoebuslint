@@ -83,6 +83,8 @@ class RuleViolation:
             location += f", Element: {self.property_element}"
         return f"[{self.rule_code}] {self.rule_name}: {self.details} ({location})"
 
+    def get_screen(self) -> Screen:
+        return self.screen if isinstance(self.screen, Screen) else Screen(str(self.screen))
 
 class RuleViolationFactory:
     """Mixin class providing a factory method to create RuleViolation instances."""
