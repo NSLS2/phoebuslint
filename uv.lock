@@ -458,6 +458,7 @@ name = "phoebuslint"
 source = { editable = "." }
 dependencies = [
     { name = "phoebusgen" },
+    { name = "pyyaml" },
 ]
 
 [package.dev-dependencies]
@@ -477,7 +478,10 @@ docs = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "phoebusgen", git = "https://github.com/jwlodek/phoebusgen?rev=v4" }]
+requires-dist = [
+    { name = "phoebusgen", git = "https://github.com/jwlodek/phoebusgen?rev=v4" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
+]
 
 [package.metadata.requires-dev]
 dev = [
