@@ -99,11 +99,30 @@ class WidgetOutOfBounds(FixableLintRule):
     @classmethod
     def fix(cls, violation: RuleViolation) -> bool:
         screen = violation.screen
-        max_widget_x = max([widget.x + widget.width for widget in screen.widgets])
-        max_widget_y = max([widget.y + widget.height for widget in screen.widgets])
-        screen.width = max(screen.width, max_widget_x + 10)
-        screen.height = max(screen.height, max_widget_y + 10)
-        return True
+        widget = violation.widget
+        fixed = False
+
+        # A negative position puts the widget off the top/left edge, which
+        # cannot be resolved by growing the screen, so clamp it into bounds.
+        if widget is not None:
+            if widget.x < 0:
+                widget.x = 0
+                fixed = True
+            if widget.y < 0:
+                widget.y = 0
+                fixed = True
+
+        all_widgets = get_all_widgets(screen)
+        max_widget_x = max([w.x + w.width for w in all_widgets])
+        max_widget_y = max([w.y + w.height for w in all_widgets])
+        new_width = max(screen.width, max_widget_x + 10)
+        new_height = max(screen.height, max_widget_y + 10)
+        if new_width != screen.width or new_height != screen.height:
+            screen.width = new_width
+            screen.height = new_height
+            fixed = True
+        return fixed
+
 
 
 class EmptyLabel(FixableLintRule):

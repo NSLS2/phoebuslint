@@ -56,6 +56,35 @@ def test_widget_out_of_bounds_rule(sample_empty_screen: Screen):
     assert len(WidgetOutOfBounds.check(sample_empty_screen)) > 0
 
 
+def test_widget_out_of_bounds_fix_grows_screen(sample_empty_screen: Screen):
+    """A widget past the right/bottom edge is fixed by growing the screen."""
+    sample_empty_screen.width = 400
+    sample_empty_screen.height = 300
+    label = Label("label1", "Too wide", 350, 280, 100, 30)
+    sample_empty_screen.add_widget(label)
+
+    violations = WidgetOutOfBounds.check(sample_empty_screen)
+    assert len(violations) == 1
+    assert WidgetOutOfBounds.fix(violations[0]) is True
+    assert len(WidgetOutOfBounds.check(sample_empty_screen)) == 0
+
+
+def test_widget_out_of_bounds_fix_clamps_negative_position(sample_empty_screen: Screen):
+    """A widget with a negative position is clamped back into bounds."""
+    sample_empty_screen.width = 412
+    sample_empty_screen.height = 118
+    label = Label("label1", "Off the top", 40, -2, 300, 22)
+    sample_empty_screen.add_widget(label)
+
+    violations = WidgetOutOfBounds.check(sample_empty_screen)
+    assert len(violations) == 1
+    assert WidgetOutOfBounds.fix(violations[0]) is True
+    assert label.x == 40
+    assert label.y == 0
+    assert len(WidgetOutOfBounds.check(sample_empty_screen)) == 0
+
+
+
 def test_duplicate_widget_names_check(screen_given_xml_factory):
     """Test that duplicate widget names are detected."""
     # Use XML directly because phoebusgen auto-deduplicates names on add_widget
