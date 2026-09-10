@@ -20,7 +20,7 @@ classifiers=[
     'Topic :: Software Development :: Linter'
 ]
 dependencies = [
-    "phoebusgen @ git+https://github.com/jwlodek/phoebusgen@v4",
+    "phoebusgen @ git+https://github.com/jwlodek/phoebusgen@make-v4-pass-static-analysis",
     "pyyaml>=6.0.3",
 ]
 

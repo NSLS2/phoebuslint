@@ -1,4 +1,5 @@
 - id: phoebuslint
-  name: Linter for Phoebus operator interfaces
+  name: lint phoebus screens
   entry: phoebuslint
   language: python
+  args: [".", "--quiet"]

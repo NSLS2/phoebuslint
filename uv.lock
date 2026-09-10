@@ -450,8 +450,8 @@ wheels = [
 
 [[package]]
 name = "phoebusgen"
-version = "0.1.dev384+g40a515ac9"
-source = { git = "https://github.com/jwlodek/phoebusgen?rev=v4#40a515ac92cafba8a6d3233bd45e92803dd55f06" }
+version = "0.1.dev423+gf2fff1988"
+source = { git = "https://github.com/jwlodek/phoebusgen?rev=make-v4-pass-static-analysis#f2fff198869d86cfe8e7c542d31d27ceaf8cc37a" }
 
 [[package]]
 name = "phoebuslint"
@@ -479,7 +479,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "phoebusgen", git = "https://github.com/jwlodek/phoebusgen?rev=v4" },
+    { name = "phoebusgen", git = "https://github.com/jwlodek/phoebusgen?rev=make-v4-pass-static-analysis" },
     { name = "pyyaml", specifier = ">=6.0.3" },
 ]
 
