@@ -17,7 +17,9 @@ class ActionButtonHasNoActions(FixableLintRule):
         for widget in screen.get_widgets_by_type(ActionButton):
             if not widget.actions:
                 rule_violations.append(
-                    cls.rule_violation_factory(screen=screen, widget=widget, fixable=True)
+                    cls.rule_violation_factory(
+                        screen=screen, widget=widget, fixable=True
+                    )
                 )
         return rule_violations
 

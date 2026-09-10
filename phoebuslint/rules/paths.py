@@ -75,7 +75,7 @@ class FilePropertyPathDoesNotExist(LintRule):
     def check(cls, screen: Screen) -> list[RuleViolation]:
         violations = []
         for widget in screen.get_widgets_by_property_class(HasFile):
-            if widget.file is not None and not widget.file.is_file():
+            if widget.file is not None and not Path(widget.file).is_file():
                 violations.append(
                     cls.rule_violation_factory(
                         screen,
@@ -105,7 +105,7 @@ class OpenFileActionPathDoesNotExist(UnsafeFixableLintRule):
                     if (
                         action.file is not None
                         and not check_path_exists_relative_to_screen(
-                            screen, action.file
+                            screen, Path(action.file)
                         )
                     ):
                         violations.append(
@@ -121,7 +121,7 @@ class OpenFileActionPathDoesNotExist(UnsafeFixableLintRule):
 
     @classmethod
     def fix(cls, violation: RuleViolation) -> bool:
-        if not cls._linter or not cls._linter._bob_file_tree:
+        if not cls.get_parent_linter() or not cls.get_bob_file_tree():
             return False
 
         screen = violation.screen
@@ -139,7 +139,7 @@ class OpenFileActionPathDoesNotExist(UnsafeFixableLintRule):
             if f"Path: {action.file}" not in violation.details:
                 continue
             filename = Path(action.file).name
-            new_path = find_closest_match(filename, origin, cls._linter._bob_file_tree)
+            new_path = find_closest_match(filename, origin, cls.get_bob_file_tree())
             if new_path is not None:
                 logger.info(
                     f"Repointing {action.file} -> {new_path} in {screen.bob_file}"
@@ -213,7 +213,7 @@ class EmbeddedDisplayPathDoesNotExist(UnsafeFixableLintRule):
             if (
                 embedded_display.file is not None
                 and not check_path_exists_relative_to_screen(
-                    screen, embedded_display.file
+                    screen, Path(embedded_display.file)
                 )
             ):
                 violations.append(
@@ -228,7 +228,7 @@ class EmbeddedDisplayPathDoesNotExist(UnsafeFixableLintRule):
 
     @classmethod
     def fix(cls, violation: RuleViolation) -> bool:
-        if not cls._linter or not cls._linter._bob_file_tree:
+        if not cls.get_parent_linter() or not cls.get_bob_file_tree():
             return False
 
         screen = violation.screen
@@ -239,14 +239,12 @@ class EmbeddedDisplayPathDoesNotExist(UnsafeFixableLintRule):
             return False
 
         if widget.file is None:
-            return True        # File not set is not an error
+            return True  # File not set is not an error
 
-        filename = widget.file.name
-        new_path = find_closest_match(filename, origin, cls._linter._bob_file_tree)
+        filename = Path(widget.file).name
+        new_path = find_closest_match(filename, origin, cls.get_bob_file_tree())
         if new_path is not None:
-            logger.info(
-                f"Repointing {widget.file} -> {new_path} in {screen.bob_file}"
-            )
+            logger.info(f"Repointing {widget.file} -> {new_path} in {screen.bob_file}")
             widget.file = new_path
             return True
         return False

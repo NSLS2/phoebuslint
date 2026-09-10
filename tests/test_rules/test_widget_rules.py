@@ -7,7 +7,6 @@ from phoebuslint.rules.widget import (
     WidgetOutOfBounds,
 )
 
-
 _OPI_ACTION_XML = (
     '<?xml version="1.0" encoding="UTF-8"?>\n'
     "<display>\n"
@@ -26,7 +25,6 @@ _OPI_ACTION_XML = (
     "  </widget>\n"
     "</display>\n"
 )
-
 
 
 def test_widget_height_or_width_zero_or_negative_rule(sample_empty_screen: Screen):
@@ -84,7 +82,6 @@ def test_widget_out_of_bounds_fix_clamps_negative_position(sample_empty_screen: 
     assert len(WidgetOutOfBounds.check(sample_empty_screen)) == 0
 
 
-
 def test_duplicate_widget_names_check(screen_given_xml_factory):
     """Test that duplicate widget names are detected."""
     # Use XML directly because phoebusgen auto-deduplicates names on add_widget
@@ -113,6 +110,7 @@ def test_duplicate_widget_names_check(screen_given_xml_factory):
     )
     violations = DuplicateWidgetNames.check(screen)
     assert len(violations) == 1
+    assert violations[0].widget is not None
     assert violations[0].widget.name == "label1"
 
 
@@ -183,4 +181,3 @@ def test_open_display_action_opi_fixable_switches_to_bob(
     action = screen.get_widgets()[0].actions[0]
     assert str(action.file) == "target.bob"
     assert len(OpenDisplayActionPathIsOpiFile.check(screen)) == 0
-

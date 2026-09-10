@@ -4,6 +4,7 @@ from phoebusgen.v4 import Screen
 
 from ..linter import LintRule, RuleViolation, SeverityLevel
 
+
 class UndefinedMacrosInScreenTransition(LintRule):
     """Rule that checks if screen transitions pass all macros required by the target."""
 
@@ -35,10 +36,14 @@ class UndefinedMacrosInScreenTransition(LintRule):
             except Exception:
                 continue
 
-            target_required_macros, target_default_macros = target_screen.get_used_macros()
+            target_required_macros, target_default_macros = (
+                target_screen.get_used_macros()
+            )
             available_macros = source_used_macros | set(edge.macros.keys())
 
-            undefined_macros = target_required_macros - available_macros - target_default_macros
+            undefined_macros = (
+                target_required_macros - available_macros - target_default_macros
+            )
 
             if undefined_macros:
                 sorted_undefined = sorted(undefined_macros)

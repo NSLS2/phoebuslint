@@ -63,7 +63,7 @@ class RuleViolation:
     rule_name: str
     rule_code: str
     rule_severity: SeverityLevel
-    screen: Screen | Path
+    screen: Screen
     widget: Widget | None = None
     property: str | None = None
     property_element: str | None = None
@@ -83,8 +83,6 @@ class RuleViolation:
             location += f", Element: {self.property_element}"
         return f"[{self.rule_code}] {self.rule_name}: {self.details} ({location})"
 
-    def get_screen(self) -> Screen:
-        return self.screen if isinstance(self.screen, Screen) else Screen(str(self.screen))
 
 class RuleViolationFactory:
     """Mixin class providing a factory method to create RuleViolation instances."""
@@ -96,7 +94,7 @@ class RuleViolationFactory:
     @classmethod
     def rule_violation_factory(
         cls,
-        screen: Screen,
+        screen: Screen | Path,
         widget: Widget | None = None,
         property: str | None = None,
         property_element: str | None = None,
@@ -105,21 +103,32 @@ class RuleViolationFactory:
     ) -> RuleViolation:
         """Factory method to create a RuleViolation instance for this rule.
 
-        Args:
-            screen (Screen): The screen where the violation was found.
-            widget (Widget | None): The widget where the violation was found.
-            property (str | None): Property name where the violation was found.
-            property_element (str | None): Property elem where the violation was found.
-            details (str | None): Additional details about the violation.
-            fixable (bool): Whether this violation can be automatically fixed.
-        Returns:
-            RuleViolation: The created RuleViolation instance.
+        Parameters
+        ----------
+        screen : Screen | Path
+            The screen where the violation was found.
+        widget : optional, Widget
+            The widget where the violation was found.
+        property : optional, str
+            The property name where the violation was found.
+        property_element : optional, str
+            The property element where the violation was found.
+        details : optional, str
+            Additional details about the violation.
+            If not provided, the rule's description will be used.
+        fixable : bool, default = False
+            Whether this violation can be automatically fixed.
+
+        Returns
+        -------
+        RuleViolation
+            The created RuleViolation instance.
         """
         return RuleViolation(
             rule_name=cls.__name__,
             rule_code=cls.rule_code,
             rule_severity=cls.rule_severity,
-            screen=screen,
+            screen=screen if isinstance(screen, Screen) else Screen(f_name=str(screen)),
             widget=widget,
             property=property,
             property_element=property_element,
@@ -149,6 +158,18 @@ class LintRule(RuleViolationFactory, ABC):
             List of issues found, or empty list if none found.
         """
         ...
+
+    @classmethod
+    def get_parent_linter(cls) -> "PhoebusLinter | None":
+        return cls._linter
+
+    @classmethod
+    def register_parent_linter(cls, linter: "PhoebusLinter") -> None:
+        cls._linter = linter
+
+    @classmethod
+    def get_bob_file_tree(cls) -> list[Path]:
+        return cls._linter.get_bob_file_tree() if cls._linter else []
 
 
 class FixableLintRule(LintRule, ABC):
@@ -185,20 +206,21 @@ class UnsafeFixableLintRule(FixableLintRule, ABC):
 
 
 def get_all_rules() -> list[type[LintRule]]:
-    basic_rules = [
+    all_rules: list[type[LintRule]] = []
+    all_rules.extend(
         rule for rule in LintRule.__subclasses__() if not inspect.isabstract(rule)
-    ]
-    fixable_rules = [
+    )
+    all_rules.extend(
         rule
         for rule in FixableLintRule.__subclasses__()
         if not inspect.isabstract(rule)
-    ]
-    unsafe_fixable_rules = [
+    )
+    all_rules.extend(
         rule
         for rule in UnsafeFixableLintRule.__subclasses__()
         if not inspect.isabstract(rule)
-    ]
-    return basic_rules + fixable_rules + unsafe_fixable_rules
+    )
+    return all_rules
 
 
 def get_all_rule_codes() -> list[str]:
@@ -236,7 +258,7 @@ class PhoebusLinter:
         self._ignore_paths = ignore_paths or []
         self._show_counts = show_counts
         self._bob_file_tree: list[Path] = []
-        LintRule._linter = self
+        LintRule.register_parent_linter(self)
 
     def build_bob_file_tree(self, root: Path) -> None:
         """Build a list of all .bob files available from the given root directory down.
@@ -247,6 +269,10 @@ class PhoebusLinter:
             The root directory to search for .bob files.
         """
         self._bob_file_tree = sorted(root.rglob("*.bob"))
+
+    def get_bob_file_tree(self) -> list[Path]:
+        """Get the list of all .bob files available from the root directory down."""
+        return self._bob_file_tree
 
     def lint_screen(
         self,
@@ -328,7 +354,7 @@ class PhoebusLinter:
                             visited[file_path].append(violation)
                             continue
                         logger.info(f"Fixing violation: {violation}")
-                        fixed = rule_cls.fix(violation)  # type: ignore
+                        fixed = rule_cls.fix(violation)
                         if not fixed:
                             visited[file_path].append(violation)
                         # In some cases, a screen will just be deleted by the fix.
@@ -484,7 +510,10 @@ class PhoebusLinter:
         for violations in results.values():
             for violation in violations:
                 violations_count[violation.rule_name + f" [{violation.rule_code}]"] = (
-                    violations_count.get(violation.rule_name + f" [{violation.rule_code}]", 0) + 1
+                    violations_count.get(
+                        violation.rule_name + f" [{violation.rule_code}]", 0
+                    )
+                    + 1
                 )
 
         for violations in results.values():

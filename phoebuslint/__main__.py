@@ -1,6 +1,7 @@
 import argparse
 import logging
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -88,7 +89,7 @@ def main():
     parser.add_argument(
         "--show-rules",
         action="store_true",
-        help="Print all enabled rules and their descriptions, then lint if paths given.",
+        help="Print all enabled rules with descriptions, then lint if paths given.",
     )
 
     args = parser.parse_args()
@@ -97,7 +98,7 @@ def main():
     elif args.quiet:
         logger.setLevel(logging.WARNING)
 
-    linter_config = {}
+    linter_config: dict[str, Any] = {}
 
     if args.config and Path(args.config).is_file():
         with open(args.config) as f:

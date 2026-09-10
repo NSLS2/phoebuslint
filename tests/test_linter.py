@@ -16,7 +16,7 @@ def test_rule_violation():
         rule_name="TestRule",
         rule_code="T001",
         rule_severity=SeverityLevel.ERROR,
-        screen=Path("test_screen.bob"),
+        screen=Screen(f_name="test_screen.bob"),
         widget=None,
         property=None,
         property_element=None,
@@ -25,7 +25,7 @@ def test_rule_violation():
     assert violation.rule_name == "TestRule"
     assert violation.rule_code == "T001"
     assert violation.rule_severity == SeverityLevel.ERROR
-    assert violation.screen == Path("test_screen.bob")
+    assert violation.screen.bob_file == "test_screen.bob"
     assert violation.details == "Test violation"
 
     assert str(violation) == "[T001] TestRule: Test violation (Screen: test_screen.bob)"
@@ -162,7 +162,7 @@ def test_did_linting_pass(
             rule_name="TestRule",
             rule_code=code,
             rule_severity=severity,
-            screen=Path("test_screen.bob"),
+            screen=Screen(f_name="test_screen.bob"),
             details=f"Test {severity.name.lower()} violation",
         )
 
@@ -183,14 +183,14 @@ def test_display_linting_report(capsys):
             rule_name="TestRule1",
             rule_code="T001",
             rule_severity=SeverityLevel.WARNING,
-            screen=Path("test_screen.bob"),
+            screen=Screen(f_name="test_screen.bob"),
             details="Test warning violation",
         ),
         RuleViolation(
             rule_name="TestRule2",
             rule_code="T002",
             rule_severity=SeverityLevel.ERROR,
-            screen=Path("test_screen.bob"),
+            screen=Screen(f_name="test_screen.bob"),
             details="Test error violation",
         ),
     ]
@@ -218,7 +218,7 @@ def test_display_linting_report_distinguishes_safe_and_unsafe_fixes(capsys):
             rule_name="EmptyLabel",
             rule_code="W104",  # safe fixable rule
             rule_severity=SeverityLevel.WARNING,
-            screen=Path("test_screen.bob"),
+            screen=Screen(f_name="test_screen.bob"),
             details="Label has empty text.",
             fixable=True,
         ),
@@ -226,7 +226,7 @@ def test_display_linting_report_distinguishes_safe_and_unsafe_fixes(capsys):
             rule_name="OpenDisplayActionPathIsOpiFile",
             rule_code="W112",  # unsafe fixable rule
             rule_severity=SeverityLevel.WARNING,
-            screen=Path("test_screen.bob"),
+            screen=Screen(f_name="test_screen.bob"),
             details="Path points to OPI file.",
             fixable=True,
         ),
@@ -250,7 +250,7 @@ def test_display_linting_report_only_safe_fixes(capsys):
             rule_name="EmptyLabel",
             rule_code="W104",
             rule_severity=SeverityLevel.WARNING,
-            screen=Path("test_screen.bob"),
+            screen=Screen(f_name="test_screen.bob"),
             details="Label has empty text.",
             fixable=True,
         ),
@@ -262,4 +262,3 @@ def test_display_linting_report_only_safe_fixes(capsys):
         in captured.out
     )
     assert "unsafe fixes" not in captured.out
-

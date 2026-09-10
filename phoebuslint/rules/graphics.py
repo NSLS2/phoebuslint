@@ -15,7 +15,9 @@ class TransparentGraphicWithZeroLineWidth(FixableLintRule):
             if isinstance(widget, HasTransparent) and isinstance(widget, HasLineWidth):
                 if widget.transparent and widget.line_width == 0:
                     rule_violations.append(
-                        cls.rule_violation_factory(screen=screen, widget=widget, fixable=True)
+                        cls.rule_violation_factory(
+                            screen=screen, widget=widget, fixable=True
+                        )
                     )
         return rule_violations
 

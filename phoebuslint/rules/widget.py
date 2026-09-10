@@ -2,10 +2,10 @@ from pathlib import Path
 
 from phoebusgen.v4 import Screen
 from phoebusgen.v4.properties import (
+    GroupStyle,
     OpenDisplayAction,
     OpenFileAction,
     OpenWebpageAction,
-    GroupStyle,
 )
 from phoebusgen.v4.properties.behavior import HasActionsRulesAndScripts
 from phoebusgen.v4.properties.display import (
@@ -19,11 +19,11 @@ from phoebusgen.v4.properties.widget import HasName, HasPVName
 from phoebusgen.v4.widgets import (
     ActionButton,
     EmbeddedDisplay,
+    Group,
     Label,
     TextEntry,
     TextUpdate,
     Widget,
-    Group,
 )
 
 from ..linter import (
@@ -93,13 +93,15 @@ class WidgetOutOfBounds(FixableLintRule):
                 or widget.y + widget.height > screen.height
             ):
                 rule_violations.append(
-                    cls.rule_violation_factory(screen=screen, widget=widget, fixable=True)
+                    cls.rule_violation_factory(
+                        screen=screen, widget=widget, fixable=True
+                    )
                 )
         return rule_violations
 
     @classmethod
     def fix(cls, violation: RuleViolation) -> bool:
-        screen = violation.get_screen()
+        screen = violation.screen
         widget = violation.widget
         fixed = False
 
@@ -123,7 +125,6 @@ class WidgetOutOfBounds(FixableLintRule):
             screen.height = new_height
             fixed = True
         return fixed
-
 
 
 class EmptyLabel(FixableLintRule):
@@ -155,7 +156,7 @@ class EmptyLabel(FixableLintRule):
     def fix(cls, violation: RuleViolation) -> bool:
         if violation.widget is None:
             return False
-        violation.get_screen().remove_widget(violation.widget)
+        violation.screen.remove_widget(violation.widget)
         return True
 
 
@@ -217,7 +218,7 @@ class LabelWithExcessiveTextLength(LintRule):
 
 
 class WidgetFontTwoLargeForHeight(FixableLintRule):
-    """Rule that checks if the font size of a Label or TextUpdate widget is too large for its height."""
+    """Check if the font size of a widget is too large for its height."""
 
     rule_code = "W119"
     rule_severity = SeverityLevel.WARNING
@@ -265,7 +266,6 @@ class WidgetFontTwoLargeForHeight(FixableLintRule):
             widget.font.size = max_size
             return True
         return False
-
 
 
 class TextUpdateWithNoDefinedPV(LintRule):
@@ -319,7 +319,7 @@ class EmbeddedDisplayPathDoesNotExist(UnsafeFixableLintRule):
             if not isinstance(widget, EmbeddedDisplay) or widget.file is None:
                 continue
 
-            path = widget.file
+            path = Path(widget.file)
             if not path.is_absolute() and screen.bob_file:
                 path = Path(screen.bob_file).parent / path
             if not path.exists() or not path.is_file():
@@ -336,7 +336,7 @@ class EmbeddedDisplayPathDoesNotExist(UnsafeFixableLintRule):
 
     @classmethod
     def fix(cls, violation: RuleViolation) -> bool:
-        if not cls._linter or not cls._linter._bob_file_tree:
+        if not cls.get_bob_file_tree():
             return False
 
         screen = violation.screen
@@ -346,11 +346,9 @@ class EmbeddedDisplayPathDoesNotExist(UnsafeFixableLintRule):
 
         origin = Path(screen.bob_file).parent if screen.bob_file else Path.cwd()
         filename = Path(widget.file).name
-        new_path = _find_closest_bob_match(filename, origin, cls._linter._bob_file_tree)
+        new_path = _find_closest_bob_match(filename, origin, cls.get_bob_file_tree())
         if new_path is not None:
-            logger.info(
-                f"Repointing {widget.file} -> {new_path} in {screen.bob_file}"
-            )
+            logger.info(f"Repointing {widget.file} -> {new_path} in {screen.bob_file}")
             widget.file = new_path
             return True
         return False
@@ -374,7 +372,7 @@ class EmbeddedDisplayPathIsOpiFile(LintRule):
         for widget in get_all_widgets(screen):
             if not isinstance(widget, EmbeddedDisplay) or widget.file is None:
                 continue
-            path = widget.file
+            path = Path(widget.file)
             if not path.is_absolute() and screen.bob_file:
                 path = Path(screen.bob_file).parent / path
             if path.suffix.lower() == ".opi":
@@ -425,7 +423,7 @@ class OpenDisplayActionPathDoesNotExist(UnsafeFixableLintRule):
                 continue
             for action in widget.actions:
                 if isinstance(action, OpenDisplayAction) and action.file is not None:
-                    path = action.file
+                    path = Path(action.file)
                     if not path.is_absolute() and screen.bob_file:
                         path = Path(screen.bob_file).parent / path
                     if not path.exists() or not path.is_file():
@@ -442,7 +440,7 @@ class OpenDisplayActionPathDoesNotExist(UnsafeFixableLintRule):
 
     @classmethod
     def fix(cls, violation: RuleViolation) -> bool:
-        if not cls._linter or not cls._linter._bob_file_tree:
+        if not cls.get_bob_file_tree():
             return False
 
         screen = violation.screen
@@ -458,7 +456,9 @@ class OpenDisplayActionPathDoesNotExist(UnsafeFixableLintRule):
             if f"Path: {action.file}" not in violation.details:
                 continue
             filename = Path(action.file).name
-            new_path = _find_closest_bob_match(filename, origin, cls._linter._bob_file_tree)
+            new_path = _find_closest_bob_match(
+                filename, origin, cls.get_bob_file_tree()
+            )
             if new_path is not None:
                 logger.info(
                     f"Repointing {action.file} -> {new_path} in {screen.bob_file}"
@@ -485,7 +485,7 @@ class OpenDisplayActionPathIsOpiFile(UnsafeFixableLintRule):
                 continue
             for action in widget.actions:
                 if isinstance(action, OpenDisplayAction) and action.file is not None:
-                    path = action.file
+                    path = Path(action.file)
                     if not path.is_absolute() and screen.bob_file:
                         path = Path(screen.bob_file).parent / path
                     if path.suffix.lower() == ".opi":
@@ -512,11 +512,11 @@ class OpenDisplayActionPathIsOpiFile(UnsafeFixableLintRule):
                 continue
             if f"Path: {action.file}" not in violation.details:
                 continue
-            resolved = action.file
+            resolved = Path(action.file)
             if not resolved.is_absolute() and screen.bob_file:
                 resolved = Path(screen.bob_file).parent / resolved
             if resolved.with_suffix(".bob").is_file():
-                new_path = action.file.with_suffix(".bob")
+                new_path = Path(action.file).with_suffix(".bob")
                 logger.info(
                     f"Repointing {action.file} -> {new_path} in {screen.bob_file}"
                 )
@@ -539,7 +539,7 @@ class OpenFileActionPathDoesNotExist(UnsafeFixableLintRule):
                 continue
             for action in widget.actions:
                 if isinstance(action, OpenFileAction):
-                    path = action.file
+                    path = Path(action.file) if action.file is not None else None
                     if path is None:
                         continue
                     if not path.is_absolute() and screen.bob_file:
@@ -558,7 +558,7 @@ class OpenFileActionPathDoesNotExist(UnsafeFixableLintRule):
 
     @classmethod
     def fix(cls, violation: RuleViolation) -> bool:
-        if not cls._linter or not cls._linter._bob_file_tree:
+        if not cls.get_bob_file_tree():
             return False
 
         screen = violation.screen
@@ -575,7 +575,9 @@ class OpenFileActionPathDoesNotExist(UnsafeFixableLintRule):
             if f"Path: {action.file}" not in violation.details:
                 continue
             filename = Path(action.file).name
-            new_path = _find_closest_bob_match(filename, origin, cls._linter._bob_file_tree)
+            new_path = _find_closest_bob_match(
+                filename, origin, cls.get_bob_file_tree()
+            )
             if new_path is not None:
                 logger.info(
                     f"Repointing {action.file} -> {new_path} in {screen.bob_file}"
@@ -651,7 +653,9 @@ class DuplicateWidgetNames(FixableLintRule):
                 continue
             if widget.name in seen_names:
                 rule_violations.append(
-                    cls.rule_violation_factory(screen=screen, widget=widget, fixable=True)
+                    cls.rule_violation_factory(
+                        screen=screen, widget=widget, fixable=True
+                    )
                 )
             else:
                 seen_names.add(widget.name)
@@ -666,7 +670,8 @@ class DuplicateWidgetNames(FixableLintRule):
             return False
         # Collect all names in the screen to avoid collisions
         existing_names = {
-            w.name for w in get_all_widgets(screen)
+            w.name
+            for w in get_all_widgets(screen)
             if isinstance(w, HasName) and w is not widget
         }
         base_name = widget.name
@@ -694,8 +699,15 @@ class FGAndBGColorAreIdentical(LintRule):
             if isinstance(w, HasForegroundColor) and isinstance(w, HasBackgroundColor)
         ):
             fg = widget.foreground_color
-            # For Group widgets with a TITLE_BAR style, use the line color as the background color (foreground = text color, line = title bar color)
-            bg = widget.background_color if not (isinstance(widget, Group) and widget.style == GroupStyle.TITLE_BAR) else widget.line_color
+            # For Group widgets with a TITLE_BAR style, use the line color as the
+            # background color (foreground = text color, line = title bar color)
+            bg = (
+                widget.background_color
+                if not (
+                    isinstance(widget, Group) and widget.style == GroupStyle.TITLE_BAR
+                )
+                else widget.line_color
+            )
             if fg == bg:
                 if isinstance(widget, HasTransparent) and widget.transparent:
                     continue
