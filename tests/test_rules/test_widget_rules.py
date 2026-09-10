@@ -3,9 +3,27 @@ from phoebusgen.v4.widgets import Label
 from phoebuslint.rules.widget import (
     DuplicateWidgetNames,
     OpenDisplayActionPathIsOpiFile,
+    WidgetHasInvalidDecimalFontSize,
     WidgetHeightOrWidthZeroOrNegative,
     WidgetOutOfBounds,
 )
+
+
+def _label_font_xml(size: str) -> str:
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        "<display version=\"2.0.0\">\n"
+        "  <name>T</name>\n"
+        "  <width>400</width>\n"
+        "  <height>300</height>\n"
+        '  <widget type="label" version="2.0.0">\n'
+        "    <name>l1</name>\n"
+        "    <x>0</x><y>0</y><width>100</width><height>20</height>\n"
+        "    <text>hi</text>\n"
+        f'    <font><font family="Liberation Sans" size="{size}" style="REGULAR" /></font>\n'
+        "  </widget>\n"
+        "</display>\n"
+    )
 
 _OPI_ACTION_XML = (
     '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -181,3 +199,32 @@ def test_open_display_action_opi_fixable_switches_to_bob(
     action = screen.get_widgets()[0].actions[0]
     assert str(action.file) == "target.bob"
     assert len(OpenDisplayActionPathIsOpiFile.check(screen)) == 0
+
+
+def test_invalid_decimal_font_size_detected(screen_given_xml_factory):
+    """A non-integral font size is flagged as fixable."""
+    screen = screen_given_xml_factory(_label_font_xml("14.5"))
+
+    violations = WidgetHasInvalidDecimalFontSize.check(screen)
+    assert len(violations) == 1
+    assert violations[0].fixable is True
+
+
+def test_integral_font_size_not_flagged(screen_given_xml_factory):
+    """An integer font size produces no violation."""
+    screen = screen_given_xml_factory(_label_font_xml("14"))
+
+    assert len(WidgetHasInvalidDecimalFontSize.check(screen)) == 0
+
+
+def test_invalid_decimal_font_size_fix_rounds_to_int(screen_given_xml_factory):
+    """The fix rounds the font size to the nearest integer and clears the violation."""
+    screen = screen_given_xml_factory(_label_font_xml("14.5"))
+
+    violations = WidgetHasInvalidDecimalFontSize.check(screen)
+    assert len(violations) == 1
+    assert WidgetHasInvalidDecimalFontSize.fix(violations[0]) is True
+
+    widget = screen.get_widgets()[0]
+    assert widget.font.size == 14
+    assert len(WidgetHasInvalidDecimalFontSize.check(screen)) == 0

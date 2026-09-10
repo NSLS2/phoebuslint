@@ -767,13 +767,24 @@ class WidgetNotVisibleAndNoRules(FixableLintRule):
 
 
 class WidgetHasInvalidDecimalFontSize(FixableLintRule):
+    """Check if a widget's font size is a decimal value instead of an integer.
+    
+    Auto-converted screens from other display managers can produce floating point
+    font-sizes, but phoebus only accepts integral ones.
+    """
+
+    rule_code = "W120"
+    description = "Widget has a font size that is a float value instead of an integer."
 
     @classmethod
-    def _extract_font_size(cls, widget: HasFont) -> float:
-        font_element = widget.root.find("font")
+    def _extract_font_size(cls, widget: HasFont) -> float | None:
+
+        font_element = widget.root.find("font/font")
         if font_element is None:
-            return 10  # Default font size if not specified
-        font_size_attrib = font_element.attrib.get("size", 10)
+            return None
+        font_size_attrib = font_element.attrib.get("size")
+        if font_size_attrib is None:
+            return None
         return float(font_size_attrib)
 
     @classmethod
@@ -783,6 +794,8 @@ class WidgetHasInvalidDecimalFontSize(FixableLintRule):
             if not isinstance(widget, HasFont):
                 continue
             font_size_attrib = cls._extract_font_size(widget)
+            if font_size_attrib is None:
+                continue
             if not float(font_size_attrib).is_integer():  # Check if it can be converted to float
                 rule_violations.append(
                     cls.rule_violation_factory(
@@ -800,7 +813,12 @@ class WidgetHasInvalidDecimalFontSize(FixableLintRule):
         if not isinstance(widget, HasFont):
             return False
         font_size_attrib = cls._extract_font_size(widget)
+        if font_size_attrib is None:
+            return False
         if not float(font_size_attrib).is_integer():
-            widget.font.size = int(round(float(font_size_attrib)))
+            font_element = widget.root.find("font/font")
+            if font_element is None:
+                return False
+            font_element.set("size", str(int(round(float(font_size_attrib)))))
             return True
         return False
