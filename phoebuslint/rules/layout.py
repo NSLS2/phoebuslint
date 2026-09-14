@@ -40,8 +40,9 @@ _BYTE_MONITOR_MIN_LABELS = 2
 _MAX_COLUMN_SPACING = 25
 # A column must contain at least this many widgets to be considered one.
 _COLUMN_MIN_WIDGETS = 3
-# Widgets whose left edges fall within this distance are treated as one column.
-_COLUMN_CLUSTER_TOLERANCE = 15
+# Widgets whose centers fall within this distance of a shared vertical line are
+# treated as one column.
+_COLUMN_CENTER_TOLERANCE = 10
 # Widgets in a shared column but separated by a larger gap are treated as
 # belonging to distinct columns rather than one poorly-spaced column.
 _COLUMN_DETECTION_MAX_GAP = 60
@@ -72,11 +73,14 @@ def _edge_gap(a: Widget, b: Widget) -> float:
     return (dx**2 + dy**2) ** 0.5
 
 
-def _aligned(a: Widget, b: Widget) -> bool:
-    """True when two widgets share a row or a column within tolerance."""
-    same_row = abs(_v_center(a) - _v_center(b)) <= _ALIGNMENT_TOLERANCE
-    same_column = abs(a.x - b.x) <= _ALIGNMENT_TOLERANCE
-    return same_row or same_column
+def _shares_horizontal_line(a: Widget, b: Widget) -> bool:
+    """True when a single horizontal line can pass through both widgets."""
+    return a.y <= b.y + b.height and b.y <= a.y + a.height
+
+
+def _rows_aligned(a: Widget, b: Widget) -> bool:
+    """True when two widgets' vertical centers align within tolerance."""
+    return abs(_v_center(a) - _v_center(b)) <= _ALIGNMENT_TOLERANCE
 
 
 def _iter_sibling_groups(container: HasWidgets) -> Iterator[list[Widget]]:
@@ -97,10 +101,12 @@ def _iter_sibling_groups(container: HasWidgets) -> Iterator[list[Widget]]:
 
 
 def _nearest_partner(primary: Widget, partners: list[Widget]) -> Widget | None:
-    """Return the partner closest to ``primary`` within the association gap."""
+    """Closest partner sharing a horizontal line with ``primary``."""
     best: Widget | None = None
     best_gap: float | None = None
     for partner in partners:
+        if not _shares_horizontal_line(primary, partner):
+            continue
         gap = _edge_gap(primary, partner)
         if gap <= _MAX_ASSOCIATION_GAP and (best_gap is None or gap < best_gap):
             best, best_gap = partner, gap
@@ -113,42 +119,23 @@ def _nearest_value(value: float, options: Sequence[float]) -> float:
 
 
 def _align_partner(primary: Widget, partner: Widget) -> bool:
-    """Align ``partner`` to ``primary`` and keep a minimum gap between them."""
-    dx = _h_center(partner) - _h_center(primary)
-    dy = _v_center(partner) - _v_center(primary)
+    """Align ``partner``'s row to ``primary`` and keep a minimum gap between them."""
     changed = False
-    if abs(dx) >= abs(dy):
-        # Widgets sit side by side: align their rows (vertical centers).
-        new_y = round(_v_center(primary) - partner.height / 2)
-        if partner.y != new_y:
-            partner.y = new_y
-            changed = True
-        # Keep at least the minimum gap on the horizontal axis.
-        if dx >= 0:
-            min_x = primary.x + primary.width + _MIN_WIDGET_GAP
-            if partner.x < min_x:
-                partner.x = min_x
-                changed = True
-        else:
-            max_right = primary.x - _MIN_WIDGET_GAP
-            if partner.x + partner.width > max_right:
-                partner.x = max_right - partner.width
-                changed = True
-        return changed
-    # Widgets are stacked: align their columns (left edges).
-    if partner.x != primary.x:
-        partner.x = primary.x
+    # Partners share a horizontal line, so align their rows (vertical centers).
+    new_y = round(_v_center(primary) - partner.height / 2)
+    if partner.y != new_y:
+        partner.y = new_y
         changed = True
-    # Keep at least the minimum gap on the vertical axis.
-    if dy >= 0:
-        min_y = primary.y + primary.height + _MIN_WIDGET_GAP
-        if partner.y < min_y:
-            partner.y = min_y
+    # Keep at least the minimum gap on the horizontal axis.
+    if _h_center(partner) >= _h_center(primary):
+        min_x = primary.x + primary.width + _MIN_WIDGET_GAP
+        if partner.x < min_x:
+            partner.x = min_x
             changed = True
     else:
-        max_bottom = primary.y - _MIN_WIDGET_GAP
-        if partner.y + partner.height > max_bottom:
-            partner.y = max_bottom - partner.height
+        max_right = primary.x - _MIN_WIDGET_GAP
+        if partner.x + partner.width > max_right:
+            partner.x = max_right - partner.width
             changed = True
     return changed
 
@@ -172,7 +159,7 @@ def _check_pair_alignment(
             partner = _nearest_partner(primary, candidates)
             if partner is None:
                 continue
-            if _aligned(primary, partner) and (
+            if _rows_aligned(primary, partner) and (
                 _edge_gap(primary, partner) >= _MIN_WIDGET_GAP
             ):
                 continue
@@ -389,12 +376,16 @@ def _mode(values: list[int], prefer_max: bool = False) -> int:
     return max(tied) if prefer_max else min(tied)
 
 
-def _cluster_by_left(widgets: Sequence[Widget]) -> list[list[Widget]]:
-    """Group widgets whose left edges fall within the column cluster tolerance."""
+def _cluster_by_center(widgets: Sequence[Widget]) -> list[list[Widget]]:
+    """Group widgets whose centers fall within the column center tolerance.
+
+    Each cluster shares a vertical line (the first widget's center) that stays
+    within ``_COLUMN_CENTER_TOLERANCE`` of every member's center.
+    """
     clusters: list[list[Widget]] = []
-    for widget in sorted(widgets, key=lambda w: w.x):
+    for widget in sorted(widgets, key=_h_center):
         for cluster in clusters:
-            if abs(widget.x - cluster[0].x) <= _COLUMN_CLUSTER_TOLERANCE:
+            if abs(_h_center(widget) - _h_center(cluster[0])) <= _COLUMN_CENTER_TOLERANCE:
                 cluster.append(widget)
                 break
         else:
@@ -406,7 +397,7 @@ def _columns_in_group(group: list[Widget]) -> list[list[Widget]]:
     """Detect vertically-stacked columns of similar widgets within a group."""
     candidates = [w for w in group if isinstance(w, _COLUMN_TYPES)]
     columns: list[list[Widget]] = []
-    for cluster in _cluster_by_left(candidates):
+    for cluster in _cluster_by_center(candidates):
         run: list[Widget] = []
         for widget in sorted(cluster, key=lambda w: w.y):
             if run:
@@ -424,9 +415,9 @@ def _columns_in_group(group: list[Widget]) -> list[list[Widget]]:
 def _column_issues(column: list[Widget]) -> list[str]:
     """Return a list of layout problems found in a detected column."""
     issues = []
-    lefts = [w.x for w in column]
-    if max(lefts) - min(lefts) > _EXACT_TOLERANCE:
-        issues.append("left edges are not aligned")
+    centers = [_h_center(w) for w in column]
+    if max(centers) - min(centers) > _EXACT_TOLERANCE:
+        issues.append("widget centers are not aligned to a vertical line")
 
     by_type: dict[type, list[Widget]] = {}
     for widget in column:
@@ -455,15 +446,9 @@ def _column_issues(column: list[Widget]) -> list[str]:
 
 
 def _normalize_column(column: list[Widget]) -> bool:
-    """Align a column's left edges, dimensions per type and vertical spacing."""
+    """Align a column's centers, dimensions per type and vertical spacing."""
     changed = False
     ordered = sorted(column, key=lambda w: w.y)
-
-    common_left = _mode([w.x for w in ordered])
-    for widget in ordered:
-        if widget.x != common_left:
-            widget.x = common_left
-            changed = True
 
     by_type: dict[type, list[Widget]] = {}
     for widget in ordered:
@@ -480,6 +465,13 @@ def _normalize_column(column: list[Widget]) -> bool:
             if widget.height != target_height:
                 widget.height = target_height
                 changed = True
+
+    common_center = _mode([round(_h_center(w)) for w in ordered])
+    for widget in ordered:
+        new_x = round(common_center - widget.width / 2)
+        if widget.x != new_x:
+            widget.x = new_x
+            changed = True
 
     gaps = [
         ordered[i + 1].y - (ordered[i].y + ordered[i].height)

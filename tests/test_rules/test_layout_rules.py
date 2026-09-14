@@ -59,8 +59,8 @@ def test_label_control_aligned_same_column_not_flagged(tmp_path):
 
 def test_label_control_misaligned_flagged_and_fixable(tmp_path):
     screen = _screen(tmp_path)
-    screen.add_widget(Label("l", "Name", 10, 100, 50, 20))
-    control = TextUpdate("t", "pv", 70, 140, 80, 20)
+    screen.add_widget(Label("l", "Name", 10, 100, 50, 40))
+    control = TextUpdate("t", "pv", 70, 120, 80, 40)
     screen.add_widget(control)
 
     violations = LabelControlMisaligned.check(screen)
@@ -76,8 +76,8 @@ def test_label_control_misaligned_within_group(tmp_path):
     screen = _screen(tmp_path)
     screen.add_widget(
         _group_with(
-            Label("l", "Name", 10, 100, 50, 20),
-            TextUpdate("t", "pv", 70, 140, 80, 20),
+            Label("l", "Name", 10, 100, 50, 40),
+            TextUpdate("t", "pv", 70, 120, 80, 40),
         )
     )
     violations = LabelControlMisaligned.check(screen)
@@ -88,8 +88,8 @@ def test_label_control_misaligned_within_tab(tmp_path):
     screen = _screen(tmp_path)
     screen.add_widget(
         _tabs_with(
-            Label("l", "Name", 10, 100, 50, 20),
-            TextUpdate("t", "pv", 70, 140, 80, 20),
+            Label("l", "Name", 10, 100, 50, 40),
+            TextUpdate("t", "pv", 70, 120, 80, 40),
         )
     )
     violations = LabelControlMisaligned.check(screen)
@@ -100,6 +100,14 @@ def test_label_with_no_nearby_control_not_flagged(tmp_path):
     screen = _screen(tmp_path)
     screen.add_widget(Label("l", "Name", 10, 100, 50, 20))
     screen.add_widget(TextUpdate("t", "pv", 400, 400, 80, 20))
+    assert LabelControlMisaligned.check(screen) == []
+
+
+def test_label_control_not_sharing_horizontal_line_not_flagged(tmp_path):
+    screen = _screen(tmp_path)
+    screen.add_widget(Label("l", "Name", 10, 100, 50, 20))
+    # Directly below, so no horizontal line passes through both.
+    screen.add_widget(TextUpdate("t", "pv", 70, 140, 80, 20))
     assert LabelControlMisaligned.check(screen) == []
 
 
@@ -115,8 +123,8 @@ def test_setpoint_readback_aligned_not_flagged(tmp_path):
 
 def test_setpoint_readback_misaligned_flagged_and_fixable(tmp_path):
     screen = _screen(tmp_path)
-    screen.add_widget(TextEntry("sp", "pv", 10, 100, 60, 20))
-    readback = TextUpdate("rb", "pv", 80, 140, 60, 20)
+    screen.add_widget(TextEntry("sp", "pv", 10, 100, 60, 40))
+    readback = TextUpdate("rb", "pv", 80, 120, 60, 40)
     screen.add_widget(readback)
 
     violations = SetpointReadbackMisaligned.check(screen)
@@ -132,8 +140,8 @@ def test_setpoint_readback_misaligned_within_group(tmp_path):
     screen = _screen(tmp_path)
     screen.add_widget(
         _group_with(
-            TextEntry("sp", "pv", 10, 100, 60, 20),
-            TextUpdate("rb", "pv", 80, 140, 60, 20),
+            TextEntry("sp", "pv", 10, 100, 60, 40),
+            TextUpdate("rb", "pv", 80, 120, 60, 40),
         )
     )
     assert len(SetpointReadbackMisaligned.check(screen)) == 1
@@ -156,7 +164,16 @@ def test_two_widgets_not_treated_as_column(tmp_path):
     assert InconsistentColumnLayout.check(screen) == []
 
 
-def test_column_misaligned_left_edges_flagged_and_fixed(tmp_path):
+def test_widgets_with_spread_centers_not_a_column(tmp_path):
+    screen = _screen(tmp_path)
+    # Centers at 40, 55, 70: no vertical line is within 10px of all of them.
+    screen.add_widget(TextUpdate("t0", "pv", 10, 10, 60, 20))
+    screen.add_widget(TextUpdate("t1", "pv", 25, 40, 60, 20))
+    screen.add_widget(TextUpdate("t2", "pv", 40, 70, 60, 20))
+    assert InconsistentColumnLayout.check(screen) == []
+
+
+def test_column_misaligned_centers_flagged_and_fixed(tmp_path):
     screen = _screen(tmp_path)
     widgets = [
         TextUpdate("t0", "pv", 10, 10, 60, 20),
