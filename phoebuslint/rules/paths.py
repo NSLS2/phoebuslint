@@ -129,7 +129,7 @@ def _attr_file_setter(obj: object) -> Callable[[Path], None]:
     """
 
     def setter(new_path: Path) -> None:
-        obj.file = new_path
+        setattr(obj, "file", new_path)
 
     return setter
 

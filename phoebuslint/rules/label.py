@@ -1,5 +1,7 @@
 
 
+import re
+
 from phoebusgen.v4 import Screen
 from phoebusgen.v4.widgets import Label
 
@@ -40,7 +42,14 @@ class EmptyLabel(FixableLintRule):
 
 
 class LabelWithExcessiveTextLength(LintRule):
-    """Rule that checks for Label widgets that have excessively long text."""
+    """Rule that checks for Label widgets that have excessively long text.
+    
+    Since the text length is dependent on the font size, this rule estimates
+    the pixel width of the text based on the font size and compares it to the
+    width of the widget. If the estimated text width exceeds the widget width,
+    a violation is reported. If any macros are found in the text, they are treated
+    as a single character for the purpose of estimating the text width.
+    """
 
     rule_code = "L102"
     description = "Label has excessively long text."
@@ -65,9 +74,17 @@ class LabelWithExcessiveTextLength(LintRule):
     @classmethod
     def _estimate_text_width(cls, text: str, font_size: float) -> float:
         """Estimate pixel width of text based on per-character weights and font size."""
+
+        # Any macros (i.e. $(...)) are treated as a single character,
+        # since we can't know the actual length of the expanded macro.  This is a
+        # simplification, but it allows us to proceed with the width estimation
+        # without having to expand macros.
+        text = re.sub(r"\$\([^)]+\)", "M", text)  # Replace macros with a single character
+
         total_width_factor = sum(
             cls._CHAR_WIDTH.get(c, cls._DEFAULT_CHAR_WIDTH) for c in text
         )
+
         return total_width_factor * font_size * 1.33
 
     @classmethod

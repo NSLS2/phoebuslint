@@ -91,6 +91,9 @@ phoebuslint -i build/ archive/ .
 | W105 | Label has excessively long text | WARNING | No |
 | W106 | TextUpdate widget with no defined PV | WARNING | No |
 | W119 | Label/TextUpdate font size too large for widget height | WARNING | Yes |
+| W121 | Label is not aligned with its associated control widget | WARNING | Yes (unsafe, nudges into alignment) |
+| W122 | Setpoint widget is not aligned with its associated readback | WARNING | Yes (unsafe, nudges into alignment) |
+| W123 | Widgets in a column are not consistently laid out | WARNING | Yes (unsafe, aligns edges, sizes and spacing) |
 
 ### Macro Rules (`M1xx`)
 
