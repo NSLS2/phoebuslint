@@ -113,11 +113,6 @@ def _nearest_partner(primary: Widget, partners: list[Widget]) -> Widget | None:
     return best
 
 
-def _nearest_value(value: float, options: Sequence[float]) -> float:
-    """Return the option closest to ``value``."""
-    return min(options, key=lambda option: abs(option - value))
-
-
 def _align_partner(primary: Widget, partner: Widget) -> bool:
     """Align ``partner``'s row to ``primary`` and keep a minimum gap between them."""
     changed = False
@@ -253,11 +248,13 @@ def _byte_label_gap(monitor: ByteMonitor, label: Widget) -> float:
 def _associated_byte_labels(
     monitor: ByteMonitor, labels: Sequence[Widget]
 ) -> list[Widget]:
-    """Labels sitting beside ``monitor`` within its vertical extent."""
+    """Labels sitting beside ``monitor`` within (roughly) its vertical extent."""
     associated = []
+    top = monitor.y - _ALIGNMENT_TOLERANCE
+    bottom = monitor.y + monitor.height + _ALIGNMENT_TOLERANCE
     for label in labels:
         center_y = _v_center(label)
-        if not (monitor.y <= center_y <= monitor.y + monitor.height):
+        if not (top <= center_y <= bottom):
             continue
         beside = (
             label.x + label.width <= monitor.x + _EXACT_TOLERANCE
@@ -272,6 +269,25 @@ def _byte_label_tolerance(monitor: ByteMonitor) -> float:
     """Alignment tolerance for a bit label, scaled to the segment height."""
     segment = monitor.height / monitor.num_bits
     return max(2.0, min(_ALIGNMENT_TOLERANCE, segment * 0.25))
+
+
+def _byte_label_pairs(
+    monitor: ByteMonitor, labels: Sequence[Widget]
+) -> list[tuple[Widget, float]] | None:
+    """Pair each associated label with a bit centre, ordered top to bottom.
+
+    Returns ``None`` when the labels cannot be confidently matched to bits, i.e.
+    there are too few of them or their count does not equal the bit count. This
+    avoids collapsing several labels onto the same bit.
+    """
+    associated = _associated_byte_labels(monitor, labels)
+    if len(associated) < _BYTE_MONITOR_MIN_LABELS:
+        return None
+    centers = sorted(_bit_centers(monitor))
+    if len(associated) != len(centers):
+        return None
+    ordered = sorted(associated, key=_v_center)
+    return list(zip(ordered, centers))
 
 
 def _align_byte_label(monitor: ByteMonitor, label: Widget, center: float) -> bool:
@@ -316,13 +332,11 @@ class ByteMonitorLabelsMisaligned(UnsafeFixableLintRule):
                 continue
             labels = [w for w in group if isinstance(w, Label)]
             for monitor in monitors:
-                associated = _associated_byte_labels(monitor, labels)
-                if len(associated) < _BYTE_MONITOR_MIN_LABELS:
+                pairs = _byte_label_pairs(monitor, labels)
+                if pairs is None:
                     continue
-                centers = _bit_centers(monitor)
                 tolerance = _byte_label_tolerance(monitor)
-                for label in associated:
-                    center = _nearest_value(_v_center(label), centers)
+                for label, center in pairs:
                     aligned = abs(_v_center(label) - center) <= tolerance
                     spaced = _byte_label_gap(monitor, label) >= _MIN_WIDGET_GAP
                     if aligned and spaced:
@@ -354,11 +368,14 @@ class ByteMonitorLabelsMisaligned(UnsafeFixableLintRule):
                 and not w.horizontal
                 and w.num_bits > 0
             ]
+            labels = [w for w in group if isinstance(w, Label)]
             for monitor in monitors:
-                if not _associated_byte_labels(monitor, [widget]):
+                pairs = _byte_label_pairs(monitor, labels)
+                if pairs is None:
                     continue
-                center = _nearest_value(_v_center(widget), _bit_centers(monitor))
-                return _align_byte_label(monitor, widget, center)
+                for label, center in pairs:
+                    if label.root is widget.root:
+                        return _align_byte_label(monitor, widget, center)
             return False
         return False
 

@@ -91,9 +91,9 @@ phoebuslint -i build/ archive/ .
 | W105 | Label has excessively long text | WARNING | No |
 | W106 | TextUpdate widget with no defined PV | WARNING | No |
 | W119 | Label/TextUpdate font size too large for widget height | WARNING | Yes |
-| W121 | Label is not aligned with, or is too close to, its associated control widget | WARNING | Yes (unsafe, aligns and keeps a 5px gap) |
-| W122 | Setpoint widget is not aligned with, or is too close to, its associated readback | WARNING | Yes (unsafe, aligns and keeps a 5px gap) |
-| W123 | Widgets in a column are not consistently laid out | WARNING | Yes (unsafe, aligns edges, sizes and spacing with a 5px minimum gap) |
+| W121 | Label is not aligned with, or is too close to, its associated control widget (only widgets a horizontal line passes through are paired) | WARNING | Yes (unsafe, aligns rows and keeps a 5px gap) |
+| W122 | Setpoint widget is not aligned with, or is too close to, its associated readback (only widgets a horizontal line passes through are paired) | WARNING | Yes (unsafe, aligns rows and keeps a 5px gap) |
+| W123 | Widgets in a column (centers within 10px of a shared vertical line) are not consistently laid out | WARNING | Yes (unsafe, aligns centers, sizes and spacing with a 5px minimum gap) |
 | W124 | Label beside a vertical byte monitor is not aligned with its bit | WARNING | Yes (unsafe, aligns label to its bit and keeps a 5px gap) |
 
 ### Macro Rules (`M1xx`)

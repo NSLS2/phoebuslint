@@ -272,21 +272,47 @@ def test_byte_monitor_labels_aligned_not_flagged(tmp_path):
     assert ByteMonitorLabelsMisaligned.check(screen) == []
 
 
-def test_byte_monitor_label_misaligned_flagged_and_fixable(tmp_path):
+def test_byte_monitor_labels_misaligned_flagged_and_fixable(tmp_path):
     screen = _screen(tmp_path)
-    screen.add_widget(_vertical_monitor())
-    screen.add_widget(Label("l0", "bit", 40, 15, 40, 20))
-    screen.add_widget(Label("l1", "bit", 40, 65, 40, 20))
-    screen.add_widget(Label("l2", "bit", 40, 115, 40, 20))
-    stray = Label("l3", "bit", 40, 40, 40, 20)  # nearest centre 25, off by 25
-    screen.add_widget(stray)
+    screen.add_widget(_vertical_monitor())  # centres at 25, 75, 125, 175
+    # One label per bit, each shifted ~30px above its bit centre.
+    labels = [
+        Label("l0", "bit", 40, -5, 40, 20),
+        Label("l1", "bit", 40, 45, 40, 20),
+        Label("l2", "bit", 40, 95, 40, 20),
+        Label("l3", "bit", 40, 145, 40, 20),
+    ]
+    for label in labels:
+        screen.add_widget(label)
 
     violations = ByteMonitorLabelsMisaligned.check(screen)
-    assert len(violations) == 1
-    assert violations[0].fixable is True
+    assert len(violations) == 4
 
-    assert ByteMonitorLabelsMisaligned.fix(violations[0]) is True
-    assert stray.y == 15
+    for violation in violations:
+        assert ByteMonitorLabelsMisaligned.fix(violation) is True
+    assert [label.y for label in labels] == [15, 65, 115, 165]
+    assert ByteMonitorLabelsMisaligned.check(screen) == []
+
+
+def test_byte_monitor_labels_not_snapped_together(tmp_path):
+    # Labels shifted past the midpoint must not collapse onto the same bit.
+    screen = _screen(tmp_path)
+    screen.add_widget(_vertical_monitor())  # centres at 25, 75, 125, 175
+    labels = [
+        Label("l0", "bit", 40, 40, 40, 20),
+        Label("l1", "bit", 40, 90, 40, 20),
+        Label("l2", "bit", 40, 140, 40, 20),
+        Label("l3", "bit", 40, 190, 40, 20),
+    ]
+    for label in labels:
+        screen.add_widget(label)
+
+    violations = ByteMonitorLabelsMisaligned.check(screen)
+    for violation in violations:
+        ByteMonitorLabelsMisaligned.fix(violation)
+
+    # Each label lands on a distinct bit centre, preserving order.
+    assert [label.y for label in labels] == [15, 65, 115, 165]
     assert ByteMonitorLabelsMisaligned.check(screen) == []
 
 
