@@ -90,14 +90,6 @@ phoebuslint -i build/ archive/ .
 | W104 | Label has empty text | WARNING | No |
 | W105 | Label has excessively long text | WARNING | No |
 | W106 | TextUpdate widget with no defined PV | WARNING | No |
-| W107 | EmbeddedDisplay has no file path set | ERROR | No |
-| W108 | EmbeddedDisplay path does not exist | ERROR | No |
-| W109 | EmbeddedDisplay path points to OPI file | WARNING | No |
-| W110 | OpenDisplayAction has no file path set | ERROR | No |
-| W111 | OpenDisplayAction path does not exist | ERROR | No |
-| W112 | OpenDisplayAction path points to OPI file | WARNING | No |
-| W113 | OpenFileAction path does not exist | WARNING | No |
-| W114 | OpenWebpageAction has an invalid URL | WARNING | No |
 | W119 | Label/TextUpdate font size too large for widget height | WARNING | Yes |
 
 ### Macro Rules (`M1xx`)
@@ -116,8 +108,13 @@ phoebuslint -i build/ archive/ .
 
 | Code | Rule | Severity | Fixable |
 |------|------|----------|---------|
-| P101 | File path property does not exist | WARNING | No |
-| P102 | OpenFileAction file path does not exist | WARNING | No |
+| P101 | Display file reference has no file path set | ERROR | No |
+| P102 | Display file reference path does not exist | ERROR | Yes (unsafe, repoints to closest match) |
+| P103 | Display file reference is neither a bob nor an opi file | WARNING | No |
+| P104 | Display file reference points to an OPI file | WARNING | Yes (unsafe, repoints to same-named .bob) |
+| P105 | OpenFileAction path does not exist | WARNING | Yes (unsafe, repoints to closest match) |
+| P106 | OpenWebpageAction has an invalid URL | WARNING | No |
+| P107 | Script file path does not exist | WARNING | No |
 
 ### Action Button Rules (`AB1xx`)
 

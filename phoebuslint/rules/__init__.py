@@ -3,6 +3,15 @@ from .action_button import (
     ActionButtonHasTooManyActions,
 )
 from .macros import UndefinedMacrosInScreenTransition
+from .paths import (
+    DisplayFileIsOpiFile,
+    DisplayFilePathDoesNotExist,
+    DisplayFilePathNotBobOrOpiFile,
+    DisplayFilePathNotSet,
+    OpenFileActionPathDoesNotExist,
+    OpenWebpageActionInvalidUrl,
+    ScriptFilePathDoesNotExist,
+)
 from .screen import (
     DefaultTitleSet,
     EmptyScreen,
@@ -12,14 +21,6 @@ from .screen import (
     TopLevelTagNotDisplay,
 )
 from .widget import (
-    EmbeddedDisplayNoFilePathSet,
-    EmbeddedDisplayPathDoesNotExist,
-    EmbeddedDisplayPathIsOpiFile,
-    OpenDisplayActionPathDoesNotExist,
-    OpenDisplayActionPathIsOpiFile,
-    OpenDisplayActionPathNotSet,
-    OpenFileActionPathDoesNotExist,
-    OpenWebpageActionInvalidUrl,
     WidgetHeightOrWidthZeroOrNegative,
     WidgetOutOfBounds,
 )
@@ -34,14 +35,13 @@ __all__ = [
     "ScreenHeightOrWidthZeroOrNegative",
     "ExtraTagsInDisplay",
     "TopLevelTagNotDisplay",
-    "EmbeddedDisplayNoFilePathSet",
     "OpenWebpageActionInvalidUrl",
-    "OpenDisplayActionPathDoesNotExist",
     "OpenFileActionPathDoesNotExist",
-    "OpenDisplayActionPathIsOpiFile",
-    "OpenDisplayActionPathNotSet",
-    "EmbeddedDisplayPathIsOpiFile",
-    "EmbeddedDisplayPathDoesNotExist",
+    "DisplayFilePathNotSet",
+    "DisplayFilePathDoesNotExist",
+    "DisplayFilePathNotBobOrOpiFile",
+    "DisplayFileIsOpiFile",
+    "ScriptFilePathDoesNotExist",
     "ActionButtonHasNoActions",
     "ActionButtonHasTooManyActions",
 ]

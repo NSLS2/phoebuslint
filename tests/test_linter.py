@@ -223,8 +223,8 @@ def test_display_linting_report_distinguishes_safe_and_unsafe_fixes(capsys):
             fixable=True,
         ),
         RuleViolation(
-            rule_name="OpenDisplayActionPathIsOpiFile",
-            rule_code="W112",  # unsafe fixable rule
+            rule_name="DisplayFileIsOpiFile",
+            rule_code="P104",  # unsafe fixable rule
             rule_severity=SeverityLevel.WARNING,
             screen=Screen(f_name="test_screen.bob"),
             details="Path points to OPI file.",

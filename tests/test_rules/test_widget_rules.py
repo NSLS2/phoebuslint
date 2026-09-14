@@ -1,18 +1,56 @@
+import logging
+
 from phoebusgen.v4 import Screen
 from phoebusgen.v4.widgets import Label
+from phoebuslint.linter import PhoebusLinter
+from phoebuslint.rules.paths import (
+    DisplayFileIsOpiFile,
+    DisplayFilePathDoesNotExist,
+    DisplayFilePathNotBobOrOpiFile,
+)
 from phoebuslint.rules.widget import (
     DuplicateWidgetNames,
-    OpenDisplayActionPathIsOpiFile,
     WidgetHasInvalidDecimalFontSize,
     WidgetHeightOrWidthZeroOrNegative,
     WidgetOutOfBounds,
 )
 
 
+def _embedded_display_source(file: str) -> str:
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<display version="2.0.0">\n'
+        "  <name>Source</name>\n"
+        '  <widget type="embedded" version="2.0.0">\n'
+        "    <name>Embedded Display</name>\n"
+        f"    <file>{file}</file>\n"
+        "  </widget>\n"
+        "</display>\n"
+    )
+
+
+def _open_display_source(target: str) -> str:
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<display version="2.0.0">\n'
+        "  <name>Source</name>\n"
+        '  <widget type="action_button" version="3.0.0">\n'
+        "    <name>Action Button</name>\n"
+        "    <actions>\n"
+        '      <action type="open_display">\n'
+        f"        <file>{target}</file>\n"
+        "        <target>replace</target>\n"
+        "      </action>\n"
+        "    </actions>\n"
+        "  </widget>\n"
+        "</display>\n"
+    )
+
+
 def _label_font_xml(size: str) -> str:
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
-        "<display version=\"2.0.0\">\n"
+        '<display version="2.0.0">\n'
         "  <name>T</name>\n"
         "  <width>400</width>\n"
         "  <height>300</height>\n"
@@ -20,10 +58,13 @@ def _label_font_xml(size: str) -> str:
         "    <name>l1</name>\n"
         "    <x>0</x><y>0</y><width>100</width><height>20</height>\n"
         "    <text>hi</text>\n"
-        f'    <font><font family="Liberation Sans" size="{size}" style="REGULAR" /></font>\n'
+        f"    <font>\n"
+        f'      <font family="Liberation Sans" size="{size}" style="REGULAR" />\n'
+        f"    </font>\n"
         "  </widget>\n"
         "</display>\n"
     )
+
 
 _OPI_ACTION_XML = (
     '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -175,10 +216,13 @@ def test_duplicate_widget_names_fix_no_false_collisions(sample_empty_screen: Scr
 def test_open_display_action_opi_not_fixable_without_bob(
     tmp_path, screen_given_xml_factory
 ):
-    """Violation is reported but not fixable when no sibling .bob file exists."""
+    """Violation is reported but not fixable when no matching .bob file exists."""
     screen = screen_given_xml_factory(_OPI_ACTION_XML)
 
-    violations = OpenDisplayActionPathIsOpiFile.check(screen)
+    linter = PhoebusLinter()
+    linter.build_bob_file_tree(tmp_path)
+
+    violations = DisplayFileIsOpiFile.check(screen)
     assert len(violations) == 1
     assert violations[0].fixable is False
 
@@ -186,19 +230,22 @@ def test_open_display_action_opi_not_fixable_without_bob(
 def test_open_display_action_opi_fixable_switches_to_bob(
     tmp_path, screen_given_xml_factory
 ):
-    """When a sibling .bob file exists, the fix repoints the action to it."""
+    """When a matching .bob file exists, the fix repoints the action to it."""
     (tmp_path / "target.bob").write_text("")
     screen = screen_given_xml_factory(_OPI_ACTION_XML)
 
-    violations = OpenDisplayActionPathIsOpiFile.check(screen)
+    linter = PhoebusLinter()
+    linter.build_bob_file_tree(tmp_path)
+
+    violations = DisplayFileIsOpiFile.check(screen)
     assert len(violations) == 1
     assert violations[0].fixable is True
 
-    assert OpenDisplayActionPathIsOpiFile.fix(violations[0]) is True
+    assert DisplayFileIsOpiFile.fix(violations[0]) is True
 
     action = screen.get_widgets()[0].actions[0]
     assert str(action.file) == "target.bob"
-    assert len(OpenDisplayActionPathIsOpiFile.check(screen)) == 0
+    assert len(DisplayFileIsOpiFile.check(screen)) == 0
 
 
 def test_invalid_decimal_font_size_detected(screen_given_xml_factory):
@@ -228,3 +275,117 @@ def test_invalid_decimal_font_size_fix_rounds_to_int(screen_given_xml_factory):
     widget = screen.get_widgets()[0]
     assert widget.font.size == 14
     assert len(WidgetHasInvalidDecimalFontSize.check(screen)) == 0
+
+
+def test_open_display_missing_path_fixable_only_with_match(tmp_path):
+    """Violation is fixable only when a same-named .bob exists in the file tree."""
+    (tmp_path / "nested").mkdir()
+    (tmp_path / "nested" / "target.bob").write_text("")
+
+    source_bob = tmp_path / "source.bob"
+    source_bob.write_text(_open_display_source("target.bob"))
+
+    linter = PhoebusLinter()
+    linter.build_bob_file_tree(tmp_path)
+    screen = Screen(f_name=str(source_bob))
+
+    violations = DisplayFilePathDoesNotExist.check(screen)
+    assert len(violations) == 1
+    assert violations[0].fixable is True
+    assert DisplayFilePathDoesNotExist.fix(violations[0]) is True
+    assert len(DisplayFilePathDoesNotExist.check(screen)) == 0
+
+
+def test_open_display_missing_path_not_fixable_without_match(tmp_path, caplog):
+    """Violation is not fixable and fix logs a warning when no match exists."""
+    source_bob = tmp_path / "source.bob"
+    source_bob.write_text(_open_display_source("missing.bob"))
+
+    linter = PhoebusLinter()
+    linter.build_bob_file_tree(tmp_path)
+    screen = Screen(f_name=str(source_bob))
+
+    violations = DisplayFilePathDoesNotExist.check(screen)
+    assert len(violations) == 1
+    assert violations[0].fixable is False
+
+    # The phoebuslint logger does not propagate, so attach caplog's handler to it.
+    phoebus_logger = logging.getLogger("phoebuslint")
+    phoebus_logger.addHandler(caplog.handler)
+    try:
+        assert DisplayFilePathDoesNotExist.fix(violations[0]) is False
+    finally:
+        phoebus_logger.removeHandler(caplog.handler)
+    assert any("missing.bob" in record.message for record in caplog.records)
+
+
+def test_embedded_display_missing_path_fixable_only_with_match(tmp_path):
+    """EmbeddedDisplay violation is fixable only when a same-named .bob exists."""
+    (tmp_path / "nested").mkdir()
+    (tmp_path / "nested" / "target.bob").write_text("")
+
+    source_bob = tmp_path / "source.bob"
+    source_bob.write_text(_embedded_display_source("target.bob"))
+
+    linter = PhoebusLinter()
+    linter.build_bob_file_tree(tmp_path)
+    screen = Screen(f_name=str(source_bob))
+
+    violations = DisplayFilePathDoesNotExist.check(screen)
+    assert len(violations) == 1
+    assert violations[0].fixable is True
+    assert DisplayFilePathDoesNotExist.fix(violations[0]) is True
+    assert len(DisplayFilePathDoesNotExist.check(screen)) == 0
+
+
+def test_embedded_display_missing_path_not_fixable_without_match(tmp_path):
+    """EmbeddedDisplay violation is not fixable when no matching .bob exists."""
+    source_bob = tmp_path / "source.bob"
+    source_bob.write_text(_embedded_display_source("missing.bob"))
+
+    linter = PhoebusLinter()
+    linter.build_bob_file_tree(tmp_path)
+    screen = Screen(f_name=str(source_bob))
+
+    violations = DisplayFilePathDoesNotExist.check(screen)
+    assert len(violations) == 1
+    assert violations[0].fixable is False
+    assert DisplayFilePathDoesNotExist.fix(violations[0]) is False
+
+
+def test_display_path_not_bob_or_opi_flags_embedded(tmp_path):
+    """An embedded display pointing to a non-bob/opi file is flagged."""
+    source_bob = tmp_path / "source.bob"
+    source_bob.write_text(_embedded_display_source("target.txt"))
+    screen = Screen(f_name=str(source_bob))
+
+    violations = DisplayFilePathNotBobOrOpiFile.check(screen)
+    assert len(violations) == 1
+    assert "target.txt" in violations[0].details
+    assert violations[0].rule_code == "P103"
+
+
+def test_display_path_not_bob_or_opi_flags_open_display_action(tmp_path):
+    """An open-display action pointing to a non-bob/opi file is flagged."""
+    source_bob = tmp_path / "source.bob"
+    source_bob.write_text(_open_display_source("target.txt"))
+    screen = Screen(f_name=str(source_bob))
+
+    violations = DisplayFilePathNotBobOrOpiFile.check(screen)
+    assert len(violations) == 1
+    assert "target.txt" in violations[0].details
+
+
+def test_display_path_bob_and_opi_not_flagged(tmp_path):
+    """Valid .bob and .opi display paths produce no violation."""
+    bob_source = tmp_path / "bob_source.bob"
+    bob_source.write_text(_open_display_source("target.bob"))
+    opi_source = tmp_path / "opi_source.bob"
+    opi_source.write_text(_embedded_display_source("target.opi"))
+
+    assert (
+        len(DisplayFilePathNotBobOrOpiFile.check(Screen(f_name=str(bob_source)))) == 0
+    )
+    assert (
+        len(DisplayFilePathNotBobOrOpiFile.check(Screen(f_name=str(opi_source)))) == 0
+    )

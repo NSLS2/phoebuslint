@@ -162,6 +162,7 @@ def test_no_violation_when_target_does_not_exist(tmp_path):
     violations = UndefinedMacrosInScreenTransition.check(screen)
     assert len(violations) == 0
 
+
 def _open_display_button(name: str, target: str) -> str:
     return (
         f'  <widget type="action_button" version="3.0.0">\n'
@@ -192,9 +193,7 @@ def test_no_violation_for_circular_transition_dependency(tmp_path):
         '  <widget type="label" version="2.0.0">\n'
         "    <name>Label</name>\n"
         "    <text>$(Q)</text>\n"
-        "  </widget>\n"
-        + _open_display_button("Open More", "more.bob")
-        + "</display>\n"
+        "  </widget>\n" + _open_display_button("Open More", "more.bob") + "</display>\n"
     )
 
     more_bob = tmp_path / "more.bob"
