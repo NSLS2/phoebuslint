@@ -265,7 +265,7 @@ def test_integral_font_size_not_flagged(screen_given_xml_factory):
 
 
 def test_invalid_decimal_font_size_fix_rounds_to_int(screen_given_xml_factory):
-    """The fix rounds the font size to the nearest integer and clears the violation."""
+    """The fix rounds the font size half up and clears the violation."""
     screen = screen_given_xml_factory(_label_font_xml("14.5"))
 
     violations = WidgetHasInvalidDecimalFontSize.check(screen)
@@ -273,7 +273,7 @@ def test_invalid_decimal_font_size_fix_rounds_to_int(screen_given_xml_factory):
     assert WidgetHasInvalidDecimalFontSize.fix(violations[0]) is True
 
     widget = screen.get_widgets()[0]
-    assert widget.font.size == 14
+    assert widget.font.size == 15
     assert len(WidgetHasInvalidDecimalFontSize.check(screen)) == 0
 
 

@@ -353,6 +353,7 @@ class WidgetHasInvalidDecimalFontSize(FixableLintRule):
             font_element = widget.root.find("font/font")
             if font_element is None:
                 return False
-            font_element.set("size", str(int(round(float(font_size_attrib)))))
+            # Round half up; round() uses banker's rounding (e.g. 0.5 -> 0).
+            font_element.set("size", str(int(font_size_attrib + 0.5)))
             return True
         return False
