@@ -365,6 +365,25 @@ def test_byte_monitor_labels_misaligned_within_group(tmp_path):
     assert len(ByteMonitorLabelsMisaligned.check(screen)) == 1
 
 
+def test_byte_monitor_labels_across_sibling_groups(tmp_path):
+    # The monitor and its labels commonly live in separate sibling groups.
+    screen = _screen(tmp_path)
+    monitor_group = Group("mon", 0, 0, 40, 200)
+    monitor_group.add_widget(_vertical_monitor(x=0, height=100, num_bits=2))
+    label_group = Group("labels", 0, 0, 200, 200)
+    label_group.add_widget(Label("l0", "bit", 21, 15, 40, 20))  # gap 1px
+    label_group.add_widget(Label("l1", "bit", 21, 65, 40, 20))
+    screen.add_widget(monitor_group)
+    screen.add_widget(label_group)
+
+    violations = ByteMonitorLabelsMisaligned.check(screen)
+    assert len(violations) == 2
+
+    for violation in violations:
+        assert ByteMonitorLabelsMisaligned.fix(violation) is True
+    assert ByteMonitorLabelsMisaligned.check(screen) == []
+
+
 # ---------------------------------------------------------------------------
 # Minimum 5px gap between aligned widgets
 # ---------------------------------------------------------------------------

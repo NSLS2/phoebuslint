@@ -230,82 +230,125 @@ class SetpointReadbackMisaligned(UnsafeFixableLintRule):
 # ---------------------------------------------------------------------------
 # Vertical byte monitor labels
 # ---------------------------------------------------------------------------
-def _bit_centers(monitor: ByteMonitor) -> list[float]:
-    """Vertical centre of each bit segment of a vertical byte monitor."""
-    segment = monitor.height / monitor.num_bits
-    return [monitor.y + (i + 0.5) * segment for i in range(monitor.num_bits)]
+def _iter_positioned(
+    container: HasWidgets, offset_x: int = 0, offset_y: int = 0
+) -> Iterator[tuple[Widget, int, int]]:
+    """Yield ``(widget, offset_x, offset_y)`` for every widget in the tree.
+
+    ``offset`` is the absolute position of the widget's coordinate space, so the
+    widget's absolute position is ``offset + widget.x/y``. Groups shift their
+    children; other containers share their parent's coordinate space.
+    """
+    for widget in container.get_widgets():
+        yield widget, offset_x, offset_y
+        if isinstance(widget, Group):
+            yield from _iter_positioned(
+                widget, offset_x + widget.x, offset_y + widget.y
+            )
+        elif isinstance(widget, HasWidgets):
+            yield from _iter_positioned(widget, offset_x, offset_y)
+        elif isinstance(widget, Tabs):
+            for tab in widget.tabs:
+                yield from _iter_positioned(tab, offset_x, offset_y)
 
 
-def _byte_label_gap(monitor: ByteMonitor, label: Widget) -> float:
-    """Horizontal edge gap between a byte monitor and a label beside it."""
-    return max(
-        label.x - (monitor.x + monitor.width),
-        monitor.x - (label.x + label.width),
-        0,
-    )
-
-
-def _associated_byte_labels(
-    monitor: ByteMonitor, labels: Sequence[Widget]
-) -> list[Widget]:
-    """Labels sitting beside ``monitor`` within (roughly) its vertical extent."""
-    associated = []
-    top = monitor.y - _ALIGNMENT_TOLERANCE
-    bottom = monitor.y + monitor.height + _ALIGNMENT_TOLERANCE
-    for label in labels:
-        center_y = _v_center(label)
-        if not (top <= center_y <= bottom):
-            continue
-        beside = (
-            label.x + label.width <= monitor.x + _EXACT_TOLERANCE
-            or label.x >= monitor.x + monitor.width - _EXACT_TOLERANCE
-        )
-        if beside and _byte_label_gap(monitor, label) <= _MAX_ASSOCIATION_GAP:
-            associated.append(label)
-    return associated
-
-
-def _byte_label_tolerance(monitor: ByteMonitor) -> float:
-    """Alignment tolerance for a bit label, scaled to the segment height."""
-    segment = monitor.height / monitor.num_bits
+def _byte_label_tolerance(segment: float) -> float:
+    """Alignment tolerance for a bit label, scaled to the bit segment height."""
     return max(2.0, min(_ALIGNMENT_TOLERANCE, segment * 0.25))
 
 
-def _byte_label_pairs(
-    monitor: ByteMonitor, labels: Sequence[Widget]
-) -> list[tuple[Widget, float]] | None:
-    """Pair each associated label with a bit centre, ordered top to bottom.
+# A resolved bit label: the widget, the absolute position of its coordinate
+# space, the monitor's absolute left edge and width, the target bit-centre y,
+# and the alignment tolerance.
+_BytePlan = dict[object, tuple[Widget, int, int, int, int, float, float]]
 
-    Returns ``None`` when the labels cannot be confidently matched to bits, i.e.
-    there are too few of them or their count does not equal the bit count. This
-    avoids collapsing several labels onto the same bit.
+
+def _byte_label_plan(screen: Screen) -> _BytePlan:
+    """Match each bit label to its bit centre using absolute coordinates.
+
+    A vertical byte monitor and its labels frequently live in different groups,
+    so matching is done in absolute space. Only labels that can be confidently
+    paired one-to-one with a monitor's bits (same count, ordered top to bottom)
+    are included, which avoids collapsing several labels onto one bit.
     """
-    associated = _associated_byte_labels(monitor, labels)
-    if len(associated) < _BYTE_MONITOR_MIN_LABELS:
-        return None
-    centers = sorted(_bit_centers(monitor))
-    if len(associated) != len(centers):
-        return None
-    ordered = sorted(associated, key=_v_center)
-    return list(zip(ordered, centers))
+    positioned = list(_iter_positioned(screen))
+    monitors = [
+        (w, ox, oy)
+        for w, ox, oy in positioned
+        if isinstance(w, ByteMonitor) and not w.horizontal and w.num_bits > 0
+    ]
+    labels = [(w, ox, oy) for w, ox, oy in positioned if isinstance(w, Label)]
+    monitor_boxes = [
+        (mox + mon.x, moy + mon.y, mon.width, mon.height)
+        for mon, mox, moy in monitors
+    ]
+
+    # Assign each label to the single nearest monitor beside it, so labels
+    # squeezed between two columns are not claimed by both.
+    buckets: dict[int, list[tuple[Widget, int, int, float]]] = {}
+    for label, lox, loy in labels:
+        lx, ly = lox + label.x, loy + label.y
+        center_y = ly + label.height / 2
+        best: int | None = None
+        best_gap: float | None = None
+        for i, (mx, my, mw, mh) in enumerate(monitor_boxes):
+            if not (my - _ALIGNMENT_TOLERANCE <= center_y <= my + mh + _ALIGNMENT_TOLERANCE):
+                continue
+            beside = (
+                lx + label.width <= mx + _EXACT_TOLERANCE
+                or lx >= mx + mw - _EXACT_TOLERANCE
+            )
+            gap = max(lx - (mx + mw), mx - (lx + label.width), 0)
+            if beside and gap <= _MAX_ASSOCIATION_GAP and (
+                best_gap is None or gap < best_gap
+            ):
+                best, best_gap = i, gap
+        if best is not None:
+            buckets.setdefault(best, []).append((label, lox, loy, center_y))
+
+    plan: _BytePlan = {}
+    for i, associated in buckets.items():
+        monitor = monitors[i][0]
+        mx, my, mw, mh = monitor_boxes[i]
+        nbits = monitor.num_bits
+        if len(associated) < _BYTE_MONITOR_MIN_LABELS or len(associated) != nbits:
+            continue
+        segment = mh / nbits
+        centers = [my + (b + 0.5) * segment for b in range(nbits)]
+        tolerance = _byte_label_tolerance(segment)
+        associated.sort(key=lambda item: item[3])
+        for (label, lox, loy, _cy), center in zip(associated, centers):
+            plan[label.root] = (label, lox, loy, mx, mw, center, tolerance)
+    return plan
 
 
-def _align_byte_label(monitor: ByteMonitor, label: Widget, center: float) -> bool:
-    """Align a label to a bit centre and keep a minimum gap from the monitor."""
+def _apply_byte_label(
+    label: Widget,
+    offset_x: int,
+    offset_y: int,
+    monitor_x: int,
+    monitor_width: int,
+    center: float,
+) -> bool:
+    """Align a label to its bit centre and keep a minimum gap from the monitor."""
     changed = False
-    new_y = round(center - label.height / 2)
+    new_y = round(center - label.height / 2) - offset_y
     if label.y != new_y:
         label.y = new_y
         changed = True
-    if _h_center(label) >= _h_center(monitor):
-        min_x = monitor.x + monitor.width + _MIN_WIDGET_GAP
-        if label.x < min_x:
-            label.x = min_x
+    abs_x = offset_x + label.x
+    monitor_right = monitor_x + monitor_width
+    if abs_x + label.width / 2 >= monitor_x + monitor_width / 2:
+        # Label sits to the right of the monitor.
+        min_abs_x = monitor_right + _MIN_WIDGET_GAP
+        if abs_x < min_abs_x:
+            label.x = min_abs_x - offset_x
             changed = True
     else:
-        max_right = monitor.x - _MIN_WIDGET_GAP
-        if label.x + label.width > max_right:
-            label.x = max_right - label.width
+        # Label sits to the left of the monitor.
+        max_abs_right = monitor_x - _MIN_WIDGET_GAP
+        if abs_x + label.width > max_abs_right:
+            label.x = max_abs_right - label.width - offset_x
             changed = True
     return changed
 
@@ -320,36 +363,24 @@ class ByteMonitorLabelsMisaligned(UnsafeFixableLintRule):
     @classmethod
     def check(cls, screen: Screen) -> list[RuleViolation]:
         violations = []
-        for group in _iter_sibling_groups(screen):
-            monitors = [
-                w
-                for w in group
-                if isinstance(w, ByteMonitor)
-                and not w.horizontal
-                and w.num_bits > 0
-            ]
-            if not monitors:
+        for label, lox, loy, mx, mw, center, tolerance in _byte_label_plan(
+            screen
+        ).values():
+            center_y = loy + label.y + label.height / 2
+            abs_x = lox + label.x
+            gap = max(abs_x - (mx + mw), mx - (abs_x + label.width), 0)
+            aligned = abs(center_y - center) <= tolerance
+            spaced = gap >= _MIN_WIDGET_GAP
+            if aligned and spaced:
                 continue
-            labels = [w for w in group if isinstance(w, Label)]
-            for monitor in monitors:
-                pairs = _byte_label_pairs(monitor, labels)
-                if pairs is None:
-                    continue
-                tolerance = _byte_label_tolerance(monitor)
-                for label, center in pairs:
-                    aligned = abs(_v_center(label) - center) <= tolerance
-                    spaced = _byte_label_gap(monitor, label) >= _MIN_WIDGET_GAP
-                    if aligned and spaced:
-                        continue
-                    violations.append(
-                        cls.rule_violation_factory(
-                            screen=screen,
-                            widget=label,
-                            details=cls.description
-                            + f" (Monitor: {monitor.name}, Label: {label.name})",
-                            fixable=True,
-                        )
-                    )
+            violations.append(
+                cls.rule_violation_factory(
+                    screen=screen,
+                    widget=label,
+                    details=cls.description + f" (Label: {label.name})",
+                    fixable=True,
+                )
+            )
         return violations
 
     @classmethod
@@ -357,27 +388,11 @@ class ByteMonitorLabelsMisaligned(UnsafeFixableLintRule):
         widget = violation.widget
         if widget is None:
             return False
-        screen = violation.screen
-        for group in _iter_sibling_groups(screen):
-            if not any(w.root is widget.root for w in group):
-                continue
-            monitors = [
-                w
-                for w in group
-                if isinstance(w, ByteMonitor)
-                and not w.horizontal
-                and w.num_bits > 0
-            ]
-            labels = [w for w in group if isinstance(w, Label)]
-            for monitor in monitors:
-                pairs = _byte_label_pairs(monitor, labels)
-                if pairs is None:
-                    continue
-                for label, center in pairs:
-                    if label.root is widget.root:
-                        return _align_byte_label(monitor, widget, center)
+        entry = _byte_label_plan(violation.screen).get(widget.root)
+        if entry is None:
             return False
-        return False
+        label, lox, loy, mx, mw, center, _tolerance = entry
+        return _apply_byte_label(label, lox, loy, mx, mw, center)
 
 
 # ---------------------------------------------------------------------------
